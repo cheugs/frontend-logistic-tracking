@@ -170,28 +170,28 @@
       </div>
 
       <!-- Map Preview -->
-      <div class="map-container" *ngIf="selectedTask">
-        <svg width="100%" height="100%" viewBox="0 0 600 220" preserveAspectRatio="xMidYMid slice">
-          <rect width="600" height="220" fill="#e8ead0" />
-          <rect x="50" y="50" width="150" height="80" rx="8" fill="#c8dba0" />
-          <rect x="400" y="50" width="150" height="80" rx="8" fill="#c8dba0" />
-          
-          <!-- Route line -->
-          <path d="M 200 90 Q 300 90 300 110 Q 300 130 400 130" fill="none" stroke="#3B82F6" stroke-width="3" stroke-dasharray="8 5" />
-          
-          <!-- Origin pin -->
-          <circle cx="125" cy="90" r="8" fill="#10B981" />
-          <circle cx="125" cy="90" r="4" fill="white" />
-          <rect x="40" y="60" width="120" height="28" rx="6" fill="white" />
-          <text x="50" y="78" font-size="8" fill="#374151">Pickup: {{ selectedTask.pickupAddress.substring(0, 20) }}...</text>
-          
-          <!-- Destination pin -->
-          <circle cx="475" cy="130" r="8" fill="#EF4444" />
-          <circle cx="475" cy="130" r="4" fill="white" />
-          <rect x="380" y="100" width="140" height="28" rx="6" fill="white" />
-          <text x="390" y="118" font-size="8" fill="#374151">Delivery: {{ selectedTask.deliveryAddress.substring(0, 20) }}...</text>
-        </svg>
-      </div>
+<div class="map-container" *ngIf="selectedTask">
+  <div id="agentMap" class="agent-map"></div>
+  <div class="map-controls" *ngIf="selectedTask">
+    <button class="map-control" (click)="zoomIn()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+    <button class="map-control" (click)="zoomOut()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+    <button class="map-control" (click)="centerMap()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <circle cx="12" cy="12" r="8" />
+      </svg>
+    </button>
+  </div>
+</div>
 
       <!-- Delivery Stats -->
       <div class="stats-bar" *ngIf="selectedTask">

@@ -1,9 +1,26 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
 import { SidebarAgentComponent } from '../../../shared/sidebar-agent/sidebar-agent';
+import * as L from 'leaflet';
+
+// Fix Leaflet default icon issue
+const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
+const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
+const shadowUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png';
+const iconDefault = L.icon({
+  iconRetinaUrl,
+  iconUrl,
+  shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+});
+L.Marker.prototype.options.icon = iconDefault;
 
 interface RoutePoint {
   lat: number;
@@ -37,8 +54,14 @@ interface DeliveryUpdate {
   styleUrls: ['./live-tracking.css'],
   imports: [CommonModule, FormsModule, RouterModule, SidebarAgentComponent]
 })
-export class LiveTrackingComponent implements OnInit, OnDestroy {
+export class LiveTrackingComponent implements OnInit, OnDestroy, AfterViewInit {
   Math = Math;
+  private map: any;
+  private mapInitialized: boolean = false;
+  private currentMarker: any;
+  private routeLine: any;
+  private pickupMarker: any;
+  private deliveryMarker: any;
   
   // Parcel information
   parcelId: string = '1';
@@ -47,6 +70,10 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
   customerPhone: string = '+49 30 987 654';
   deliveryAddress: string = 'Goethestraße 1, 10115 Berlin';
   pickupAddress: string = 'Berlin Central Hub, Mohrenstrasse 37';
+  
+  // Coordinates
+  pickupCoords: { lat: number; lng: number } = { lat: 52.5123, lng: 13.3889 };
+  deliveryCoords: { lat: number; lng: number } = { lat: 52.5240, lng: 13.4100 };
   
   // Tracking state
   isTracking: boolean = false;
@@ -99,6 +126,148 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
     console.log('Live tracking component initialized');
   }
   
+  ngAfterViewInit(): void {
+    // Don't initialize map immediately - wait for view to be ready
+    setTimeout(() => {
+      this.initMap();
+    }, 100);
+  }
+  
+  private initMap(): void {
+    if (this.mapInitialized) return;
+    
+    const mapElement = document.getElementById('liveMap');
+    if (!mapElement) return;
+    
+    this.map = L.map('liveMap').setView([52.5200, 13.4050], 13);
+    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      minZoom: 3
+    }).addTo(this.map);
+    
+    this.mapInitialized = true;
+    this.updateMapMarkers();
+  }
+  
+  private updateMapMarkers(): void {
+    if (!this.map) return;
+    
+    // Clear existing markers
+    if (this.pickupMarker) this.map.removeLayer(this.pickupMarker);
+    if (this.deliveryMarker) this.map.removeLayer(this.deliveryMarker);
+    if (this.currentMarker) this.map.removeLayer(this.currentMarker);
+    if (this.routeLine) this.map.removeLayer(this.routeLine);
+    
+    // Add pickup marker (Green)
+    const pickupIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: #10B981; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+      iconSize: [12, 12],
+      popupAnchor: [0, -6]
+    });
+    
+    this.pickupMarker = L.marker([this.pickupCoords.lat, this.pickupCoords.lng], { icon: pickupIcon })
+      .bindPopup(`<strong>📦 Pickup</strong><br/>${this.pickupAddress}`)
+      .addTo(this.map);
+    
+    // Add delivery marker (Red)
+    const deliveryIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: #EF4444; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+      iconSize: [12, 12],
+      popupAnchor: [0, -6]
+    });
+    
+    this.deliveryMarker = L.marker([this.deliveryCoords.lat, this.deliveryCoords.lng], { icon: deliveryIcon })
+      .bindPopup(`<strong>📍 Delivery</strong><br/>${this.deliveryAddress}<br/>Customer: ${this.customerName}`)
+      .addTo(this.map);
+    
+    // Add current position marker (Blue, animated)
+    const progressRatio = this.currentProgress / 100;
+    const currentLat = this.pickupCoords.lat + (this.deliveryCoords.lat - this.pickupCoords.lat) * progressRatio;
+    const currentLng = this.pickupCoords.lng + (this.deliveryCoords.lng - this.pickupCoords.lng) * progressRatio;
+    
+    const currentIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: #3B82F6; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px #3B82F6; animation: pulse 1.5s infinite;"></div>`,
+      iconSize: [14, 14],
+      popupAnchor: [0, -7]
+    });
+    
+    this.currentMarker = L.marker([currentLat, currentLng], { icon: currentIcon })
+      .bindPopup(`<strong>🚚 Current Position</strong><br/>${this.currentProgress}% complete<br/>ETA: ${this.formatDuration(this.etaMinutes)}`)
+      .addTo(this.map);
+    
+    // Draw route line
+    const routePoints: [number, number][] = [
+      [this.pickupCoords.lat, this.pickupCoords.lng],
+      [currentLat, currentLng],
+      [this.deliveryCoords.lat, this.deliveryCoords.lng]
+    ];
+    
+    this.routeLine = L.polyline(routePoints, {
+      color: '#3B82F6',
+      weight: 4,
+      opacity: 0.8,
+      dashArray: '10, 10'
+    }).addTo(this.map);
+    
+    // Fit bounds to show route
+    const bounds = L.latLngBounds(routePoints);
+    this.map.fitBounds(bounds, { padding: [50, 50] });
+  }
+  
+  private updateCurrentPositionOnMap(): void {
+    if (!this.map || !this.currentMarker) return;
+    
+    const progressRatio = this.currentProgress / 100;
+    const currentLat = this.pickupCoords.lat + (this.deliveryCoords.lat - this.pickupCoords.lat) * progressRatio;
+    const currentLng = this.pickupCoords.lng + (this.deliveryCoords.lng - this.pickupCoords.lng) * progressRatio;
+    
+    this.currentMarker.setLatLng([currentLat, currentLng]);
+    this.currentMarker.bindPopup(`<strong>🚚 Current Position</strong><br/>${this.currentProgress}% complete<br/>ETA: ${this.formatDuration(this.etaMinutes)}`);
+    
+    // Update route line
+    if (this.routeLine) {
+      this.map.removeLayer(this.routeLine);
+    }
+    
+    const routePoints: [number, number][] = [
+      [this.pickupCoords.lat, this.pickupCoords.lng],
+      [currentLat, currentLng],
+      [this.deliveryCoords.lat, this.deliveryCoords.lng]
+    ];
+    
+    this.routeLine = L.polyline(routePoints, {
+      color: '#3B82F6',
+      weight: 4,
+      opacity: 0.8,
+      dashArray: '10, 10'
+    }).addTo(this.map);
+  }
+  
+  // Map controls
+  zoomIn(): void {
+    if (this.map) this.map.zoomIn();
+  }
+  
+  zoomOut(): void {
+    if (this.map) this.map.zoomOut();
+  }
+  
+  centerMap(): void {
+    if (this.map) {
+      const bounds = L.latLngBounds([
+        [this.pickupCoords.lat, this.pickupCoords.lng],
+        [this.deliveryCoords.lat, this.deliveryCoords.lng]
+      ]);
+      this.map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
+  
   initializeRouteSegments(): void {
     this.routeSegments = [
       { 
@@ -144,6 +313,9 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
   
   ngOnDestroy(): void {
     this.stopSimulation();
+    if (this.map) {
+      this.map.remove();
+    }
   }
   
   calculateAdjustedSpeed(): void {
@@ -186,7 +358,7 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
           this.completeDelivery();
         }
         
-        this.updateCurrentLocation();
+        this.updateCurrentPositionOnMap();
       }
     }, this.progressInterval);
   }
@@ -221,6 +393,7 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
     this.distanceRemaining = this.totalDistance;
     this.etaMinutes = Math.round(this.totalDistance / this.currentSpeed * 60);
     this.isDelivered = false;
+    this.updateCurrentPositionOnMap();
   }
   
   completeDelivery(): void {
@@ -230,19 +403,13 @@ export class LiveTrackingComponent implements OnInit, OnDestroy {
     this.distanceRemaining = 0;
     this.etaMinutes = 0;
     this.addUpdate('Delivery Location', 'Delivered', 'Package successfully delivered to customer');
+    this.updateCurrentPositionOnMap();
   }
   
   markAsDelivered(): void {
     if (confirm('Mark this delivery as completed?')) {
       this.completeDelivery();
     }
-  }
-  
-  updateCurrentLocation(): void {
-    const lat = 52.5123 + (this.currentProgress / 100) * 0.0117;
-    const lng = 13.3889 + (this.currentProgress / 100) * 0.0211;
-    this.manualLatitude = lat;
-    this.manualLongitude = lng;
   }
   
   updateManualPosition(): void {

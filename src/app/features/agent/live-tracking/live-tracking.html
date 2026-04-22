@@ -29,75 +29,41 @@
       </div>
 
       <!-- Map Container -->
-      <div class="map-container">
-        <svg width="100%" height="100%" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
-          <!-- Background -->
-          <rect width="800" height="400" fill="#e8ead0" />
-          
-          <!-- City areas -->
-          <rect x="30" y="50" width="120" height="80" rx="8" fill="#c8dba0" />
-          <text x="90" y="95" text-anchor="middle" font-size="10" fill="#374151">Berlin Hub</text>
-          
-          <rect x="600" y="250" width="120" height="80" rx="8" fill="#c8dba0" />
-          <text x="660" y="295" text-anchor="middle" font-size="10" fill="#374151">Delivery Location</text>
-          
-          <!-- Route path -->
-          <path d="M 150 90 Q 300 90 350 150 Q 400 210 450 250 Q 550 290 600 290" 
-                fill="none" stroke="#3B82F6" stroke-width="4" stroke-dasharray="10 5" />
-          
-          <!-- Current position marker (animated) -->
-          <circle cx="150" cy="90" r="10" fill="#3B82F6" opacity="0.3">
-            <animate attributeName="r" values="10;15;10" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="150" cy="90" r="6" fill="#3B82F6" />
-          <circle cx="150" cy="90" r="3" fill="white" />
-          
-          <!-- Pickup marker -->
-          <circle cx="90" cy="90" r="8" fill="#10B981" />
-          <circle cx="90" cy="90" r="4" fill="white" />
-          
-          <!-- Delivery marker -->
-          <circle cx="660" cy="290" r="8" fill="#EF4444" />
-          <circle cx="660" cy="290" r="4" fill="white" />
-          
-          <!-- Progress bar on route -->
-          <circle cx="150" cy="90" r="12" fill="none" stroke="#3B82F6" stroke-width="2" stroke-dasharray="75 75">
-            <animate attributeName="stroke-dashoffset" values="75;0" dur="10s" repeatCount="indefinite" />
-          </circle>
-        </svg>
-        
-        <!-- Map Controls with SVG icons -->
-        <div class="map-controls">
-          <button class="map-control">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-          <button class="map-control">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-          <button class="map-control">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3" />
-              <circle cx="12" cy="12" r="8" />
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Delivery Status Overlay -->
-        <div class="status-overlay" *ngIf="isDelivered">
-          <div class="status-overlay-content">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            <h3>Delivery Completed!</h3>
-            <p>Package successfully delivered to customer</p>
-          </div>
-        </div>
-      </div>
+<div class="map-container">
+  <div id="liveMap" class="live-map"></div>
+  
+  <!-- Map Controls -->
+  <div class="map-controls">
+    <button class="map-control" (click)="zoomIn()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+    <button class="map-control" (click)="zoomOut()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+    <button class="map-control" (click)="centerMap()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3" />
+        <circle cx="12" cy="12" r="8" />
+      </svg>
+    </button>
+  </div>
+  
+  <!-- Delivery Status Overlay -->
+  <div class="status-overlay" *ngIf="isDelivered">
+    <div class="status-overlay-content">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+      <h3>Delivery Completed!</h3>
+      <p>Package successfully delivered to customer</p>
+    </div>
+  </div>
+</div>
 
       <!-- Progress Section -->
       <div class="progress-section">

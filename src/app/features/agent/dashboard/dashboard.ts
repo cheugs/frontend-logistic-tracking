@@ -1,9 +1,26 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
 import { SidebarAgentComponent } from '../../../shared/sidebar-agent/sidebar-agent';
+import * as L from 'leaflet';
+
+// Fix Leaflet default icon issue
+const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
+const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
+const shadowUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png';
+const iconDefault = L.icon({
+  iconRetinaUrl,
+  iconUrl,
+  shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+});
+L.Marker.prototype.options.icon = iconDefault;
 
 interface DeliveryTask {
   id: string;
@@ -22,6 +39,8 @@ interface DeliveryTask {
   progress: number;
   currentLocation?: string;
   priority: 'high' | 'medium' | 'low';
+  pickupCoords?: { lat: number; lng: number };
+  deliveryCoords?: { lat: number; lng: number };
 }
 
 interface StatCard {
@@ -49,8 +68,12 @@ interface ActivityLog {
   styleUrls: ['./dashboard.css'],
   imports: [CommonModule, FormsModule, RouterModule, SidebarAgentComponent]
 })
-export class AgentDashboardComponent implements OnInit {
+export class AgentDashboardComponent implements OnInit, AfterViewInit {
   Math = Math;
+  private map: any;
+  private mapInitialized: boolean = false;
+  private currentRouteLayer: any;
+  private markers: any[] = [];
   
   // Agent information
   agentName = 'Max Klinger';
@@ -58,7 +81,7 @@ export class AgentDashboardComponent implements OnInit {
   agentRating = 4.9;
   totalDeliveries = 1240;
   
-  // Today's deliveries
+  // Today's deliveries with coordinates
   todayDeliveries: DeliveryTask[] = [
     {
       id: '1',
@@ -76,7 +99,9 @@ export class AgentDashboardComponent implements OnInit {
       estimatedTime: '25 min',
       progress: 66,
       currentLocation: 'Torstraße 10117',
-      priority: 'medium'
+      priority: 'medium',
+      pickupCoords: { lat: 52.5123, lng: 13.3889 },
+      deliveryCoords: { lat: 52.5240, lng: 13.4100 }
     },
     {
       id: '2',
@@ -93,7 +118,9 @@ export class AgentDashboardComponent implements OnInit {
       distance: 8.3,
       estimatedTime: '18 min',
       progress: 0,
-      priority: 'high'
+      priority: 'high',
+      pickupCoords: { lat: 53.5511, lng: 9.9937 },
+      deliveryCoords: { lat: 50.9375, lng: 6.9603 }
     },
     {
       id: '3',
@@ -110,7 +137,9 @@ export class AgentDashboardComponent implements OnInit {
       distance: 15.2,
       estimatedTime: '32 min',
       progress: 0,
-      priority: 'low'
+      priority: 'low',
+      pickupCoords: { lat: 50.1109, lng: 8.6821 },
+      deliveryCoords: { lat: 52.5123, lng: 13.3889 }
     }
   ];
   
@@ -162,6 +191,120 @@ export class AgentDashboardComponent implements OnInit {
   }
   
   ngOnInit(): void {}
+  
+  ngAfterViewInit(): void {
+    // Don't initialize map here - wait for tab click or task selection
+  }
+  
+  private initMap(): void {
+    if (this.mapInitialized) return;
+    
+    const mapElement = document.getElementById('agentMap');
+    if (!mapElement) return;
+    
+    this.map = L.map('agentMap').setView([51.1657, 10.4515], 6);
+    
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      minZoom: 3
+    }).addTo(this.map);
+    
+    this.mapInitialized = true;
+  }
+  
+  private updateMapForTask(task: DeliveryTask): void {
+    if (!this.map || !task.pickupCoords || !task.deliveryCoords) return;
+    
+    // Clear existing layers
+    if (this.currentRouteLayer) {
+      this.map.removeLayer(this.currentRouteLayer);
+    }
+    this.markers.forEach(marker => this.map.removeLayer(marker));
+    this.markers = [];
+    
+    // Add pickup marker (Green)
+    const pickupIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: #10B981; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+      iconSize: [12, 12],
+      popupAnchor: [0, -6]
+    });
+    
+    const pickupMarker = L.marker([task.pickupCoords.lat, task.pickupCoords.lng], { icon: pickupIcon })
+      .bindPopup(`<strong>📦 Pickup</strong><br/>${task.pickupAddress.substring(0, 30)}...`)
+      .addTo(this.map);
+    this.markers.push(pickupMarker);
+    
+    // Add delivery marker (Red)
+    const deliveryIcon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div style="background-color: #EF4444; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+      iconSize: [12, 12],
+      popupAnchor: [0, -6]
+    });
+    
+    const deliveryMarker = L.marker([task.deliveryCoords.lat, task.deliveryCoords.lng], { icon: deliveryIcon })
+      .bindPopup(`<strong>📍 Delivery</strong><br/>${task.deliveryAddress.substring(0, 30)}...<br/>Customer: ${task.customerName}`)
+      .addTo(this.map);
+    this.markers.push(deliveryMarker);
+    
+    // Add current position marker (Blue, animated)
+    if (task.currentLocation && task.pickupCoords && task.deliveryCoords) {
+      const progressRatio = task.progress / 100;
+      const currentLat = task.pickupCoords.lat + (task.deliveryCoords.lat - task.pickupCoords.lat) * progressRatio;
+      const currentLng = task.pickupCoords.lng + (task.deliveryCoords.lng - task.pickupCoords.lng) * progressRatio;
+      
+      const currentIcon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="background-color: #3B82F6; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px #3B82F6; animation: pulse 1.5s infinite;"></div>`,
+        iconSize: [14, 14],
+        popupAnchor: [0, -7]
+      });
+      
+      const currentMarker = L.marker([currentLat, currentLng], { icon: currentIcon })
+        .bindPopup(`<strong>🚚 Current Position</strong><br/>${task.progress}% complete`)
+        .addTo(this.map);
+      this.markers.push(currentMarker);
+    }
+    
+    // Draw route line
+    const routePoints: [number, number][] = [
+      [task.pickupCoords.lat, task.pickupCoords.lng],
+      [task.deliveryCoords.lat, task.deliveryCoords.lng]
+    ];
+    
+    this.currentRouteLayer = L.polyline(routePoints, {
+      color: '#3B82F6',
+      weight: 4,
+      opacity: 0.8,
+      dashArray: '10, 10'
+    }).addTo(this.map);
+    
+    // Fit bounds to show both points
+    const bounds = L.latLngBounds(routePoints);
+    this.map.fitBounds(bounds, { padding: [50, 50] });
+  }
+  
+  // Map controls
+  zoomIn(): void {
+    if (this.map) this.map.zoomIn();
+  }
+  
+  zoomOut(): void {
+    if (this.map) this.map.zoomOut();
+  }
+  
+  centerMap(): void {
+    if (this.map && this.selectedTask?.pickupCoords && this.selectedTask?.deliveryCoords) {
+      const bounds = L.latLngBounds([
+        [this.selectedTask.pickupCoords.lat, this.selectedTask.pickupCoords.lng],
+        [this.selectedTask.deliveryCoords.lat, this.selectedTask.deliveryCoords.lng]
+      ]);
+      this.map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
   
   calculateStats(): void {
     const pendingCount = this.todayDeliveries.filter(t => t.status === 'PENDING').length;
@@ -253,6 +396,15 @@ export class AgentDashboardComponent implements OnInit {
   
   selectTask(task: DeliveryTask): void {
     this.selectedTask = task;
+    setTimeout(() => {
+      if (!this.mapInitialized) {
+        this.initMap();
+      }
+      if (this.map) {
+        this.updateMapForTask(task);
+        this.map.invalidateSize();
+      }
+    }, 100);
   }
   
   startDelivery(task: DeliveryTask): void {

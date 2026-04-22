@@ -411,12 +411,59 @@
 }
 
 /* Map Container */
+/* Map Container */
 .map-container {
+  position: relative;
   width: 100%;
-  height: 200px;
+  height: 250px;
   border-radius: 12px;
   overflow: hidden;
-  background: #e8f0e8;
+  background: #e8ead0;
+}
+
+.agent-map {
+  width: 100%;
+  height: 100%;
+}
+
+.map-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.map-control {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  background: white;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.2s;
+}
+
+.map-control:hover {
+  background: #F3F4F6;
+}
+
+.map-control:last-child {
+  border-bottom: none;
+}
+
+/* Animation for current position marker */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Stats Bar */
