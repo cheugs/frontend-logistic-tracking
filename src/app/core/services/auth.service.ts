@@ -1,29 +1,35 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
-import { AuthRequest, AuthResponse, SignupRequest, UserRole, UserResponse } from '../models/auth.models';
+import {
+  AuthRequest,
+  AuthResponse,
+  SignupRequest,
+  UserRole,
+  UserResponse,
+} from '../models/auth.models';
 import { TokenStorageService } from './token-storage.service';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = environment.authUrl;
+  private readonly baseUrl = `${environment.apiUrl}/logistics/auth`;
 
   constructor(
     private readonly http: HttpClient,
-    private readonly storage: TokenStorageService
+    private readonly storage: TokenStorageService,
   ) {}
 
   login(payload: AuthRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, payload).pipe(
-      tap((res) => this.storage.save(res.token, res.user))
-    );
+    return this.http
+      .post<AuthResponse>(`${this.baseUrl}/login`, payload)
+      .pipe(tap((res) => this.storage.save(res.token, res.user)));
   }
 
   register(payload: SignupRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/register`, payload).pipe(
-      tap((res) => this.storage.save(res.token, res.user))
-    );
+    return this.http
+      .post<AuthResponse>(`${this.baseUrl}/register`, payload)
+      .pipe(tap((res) => this.storage.save(res.token, res.user)));
   }
 
   logout(): void {

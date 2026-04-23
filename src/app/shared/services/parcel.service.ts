@@ -1,12 +1,21 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, delay } from 'rxjs';
-import { CreateParcelDraft, DeliveryDetailsFormValue, ParcelSummary, PaymentMethod } from '../../core/models/parcel.model';
+import { HttpClient } from '@angular/common/http';
+import {
+  CreateParcelDraft,
+  DeliveryDetailsFormValue,
+  ParcelSummary,
+  PaymentMethod,
+} from '../../core/models/parcel.model';
 import { WalletService } from './wallet.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ParcelService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = `${environment.apiUrl}/logistics/api/v1/parcels`;
   private readonly parcels: ParcelSummary[] = [
     {
       id: '41267981240-DEF1',
@@ -16,7 +25,7 @@ export class ParcelService {
       paymentStatus: 'PAID',
       createdAt: '2026-03-02T10:30:00Z',
       estimatedDeliveryTime: '2026-03-04T16:00:00Z',
-      destination: 'Abuja, Nigeria'
+      destination: 'Abuja, Nigeria',
     },
     {
       id: '81267981241-ABC9',
@@ -26,7 +35,7 @@ export class ParcelService {
       paymentStatus: 'PAID',
       createdAt: '2026-03-03T09:00:00Z',
       estimatedDeliveryTime: '2026-03-06T13:30:00Z',
-      destination: 'Port Harcourt, Nigeria'
+      destination: 'Port Harcourt, Nigeria',
     },
     {
       id: '91267981242-KLM3',
@@ -36,12 +45,11 @@ export class ParcelService {
       paymentStatus: 'PAID',
       createdAt: '2026-03-01T12:15:00Z',
       estimatedDeliveryTime: '2026-03-05T11:00:00Z',
-      destination: 'Lagos, Nigeria'
-    }
+      destination: 'Lagos, Nigeria',
+    },
   ];
 
   constructor(private readonly walletService: WalletService) {}
-
 
   getCurrentUserParcels(): Observable<ParcelSummary[]> {
     return of(this.parcels).pipe(delay(350));
@@ -51,11 +59,20 @@ export class ParcelService {
     const base = draft.packageSize === 'SMALL' ? 4000 : 15000;
     const weightFactor = Math.max(1, Math.ceil(details.weight / 5));
     const fragilityFactor = 1 + (details.fragility / 10) * 0.2;
-    const distanceFactor = this.estimateDistanceFactor(details.sourceLatitude, details.sourceLongitude, details.destinationLatitude, details.destinationLongitude);
+    const distanceFactor = this.estimateDistanceFactor(
+      details.sourceLatitude,
+      details.sourceLongitude,
+      details.destinationLatitude,
+      details.destinationLongitude,
+    );
     return Math.round(base * weightFactor * fragilityFactor * distanceFactor);
   }
 
-  createParcel(details: DeliveryDetailsFormValue, draft: CreateParcelDraft, amount: number): Observable<ParcelSummary> {
+  createParcel(
+    details: DeliveryDetailsFormValue,
+    draft: CreateParcelDraft,
+    amount: number,
+  ): Observable<ParcelSummary> {
     const id = `PL-${Date.now()}`;
     const parcel: ParcelSummary = {
       id,
@@ -65,15 +82,17 @@ export class ParcelService {
       paymentStatus: 'PAID',
       createdAt: new Date().toISOString(),
       estimatedDeliveryTime: this.estimateEta(details, draft.deliveryMode),
-      destination: details.destinationAgency
+      destination: details.destinationAgency,
     };
 
     this.parcels.unshift(parcel);
     return of(parcel).pipe(delay(350));
   }
 
-  simulatePayment(method: PaymentMethod, amount: number): Observable<{ success: boolean; method: PaymentMethod; amount: number }> {
-
+  simulatePayment(
+    method: PaymentMethod,
+    amount: number,
+  ): Observable<{ success: boolean; method: PaymentMethod; amount: number }> {
     return of({ success: true, method, amount }).pipe(delay(700));
   }
 
