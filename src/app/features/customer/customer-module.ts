@@ -13,21 +13,9 @@ import { AccountComponent } from './account/account.component';
   imports: [
     CommonModule,
     FormsModule,
-    CustomerRoutingModule,
-    DashboardComponent,
-    SendPackageComponent,
-    DeliveryDetailsComponent,
-    PackagesComponent,
-    TrackParcelComponent,
-    AccountComponent
+    CustomerRoutingModule
   ],
     exports: [
-    DashboardComponent,
-    SendPackageComponent,
-    DeliveryDetailsComponent,
-    PackagesComponent,
-    TrackParcelComponent,
-    AccountComponent
   ]
 })
 export class CustomerModule { }

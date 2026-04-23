@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -16,6 +16,8 @@ import { WalletService } from '../../../shared/services/wallet.service';
 })
 export class DeliveryDetailsComponent implements OnInit {
   protected readonly currentStep = signal<'DETAILS' | 'PAYMENT'>('DETAILS');
+  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
   protected readonly paymentMethods: { id: PaymentMethod; label: string; subtitle: string }[] = [
     { id: 'MTN_MOBILE_MONEY', label: 'MTN Mobile Money', subtitle: 'Pay with your MTN MoMo wallet' },
     { id: 'ORANGE_MONEY', label: 'Orange Money', subtitle: 'Pay with your Orange Money account' },
@@ -62,8 +64,6 @@ export class DeliveryDetailsComponent implements OnInit {
   });
 
   constructor(
-    private readonly fb: FormBuilder,
-    private readonly router: Router,
     private readonly parcelService: ParcelService,
     private readonly walletService: WalletService
   ) {}
@@ -75,6 +75,16 @@ export class DeliveryDetailsComponent implements OnInit {
   protected recalculateAmount(): void {
     this.computedAmount.set(this.parcelService.calculateParcelPrice(this.detailsForm.getRawValue(), this.draft));
   }
+
+  protected goBack(): void {
+    if (this.currentStep() === 'PAYMENT') {
+      this.currentStep.set('DETAILS');
+      return;
+    }
+
+    this.router.navigate(['/customer/create-parcel']);
+  }
+
 
   protected selectPayment(method: PaymentMethod): void {
     this.selectedPayment.set(method);

@@ -1,20 +1,26 @@
 import { Routes } from '@angular/router';
+import { authGuard } from "./core/guards/auth-guard";
 
 export const routes: Routes = [
- { path: '',
-    loadChildren: () => import('./features/landing/landing-module').then(m => m.LandingModule)
+  {
+    path: '',
+    pathMatch: 'full',
+    redirectTo: 'landing'
+  },
+ { path: 'landing',
+    loadComponent: () => import('./features/landing/landing.component').then(m => m.LandingComponent)
   },
 
  { path: 'onboarding',
-    loadChildren: () => import('./features/onboarding/onboarding.component').then(m => m.OnboardingComponent)
+    loadComponent: () => import('./features/onboarding/onboarding.component').then(m => m.OnboardingComponent)
   },
 
   { path: 'login',
-    loadChildren: () => import('./features/auth/auth-module').then(m => m.AuthModule)
+    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
   },
 
   { path: 'register',
-    loadChildren: () => import('./features/auth/auth-module').then(m => m.AuthModule)
+    loadComponent: () => import('./features/auth/register/register.component').then(m => m.RegisterComponent)
   },
 
   {
@@ -27,8 +33,46 @@ export const routes: Routes = [
   },
 
   {
-    path: 'customer',
-    loadChildren: () => import('./features/customer/customer-module').then(m => m.CustomerModule)
+    path: 'customer/dashboard',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/dashboard/dashboard.component').then(m => m.DashboardComponent)
+  },
+  {
+    path: 'customer/create-parcel',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/send-package/send-package.component').then(m => m.SendPackageComponent)
+  },
+  {
+    path: 'customer/delivery-details',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/delivery-details/delivery-details.component').then(m => m.DeliveryDetailsComponent)
+  },
+  {
+    path: 'customer/packages',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/packages/packages.component').then(m => m.PackagesComponent)
+  },
+  {
+    path: 'customer/track-parcel',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/track-parcel/track-parcel.component').then(m => m.TrackParcelComponent)
+  },
+  {
+    path: 'customer/track-parcel/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/track-parcel/track-parcel.component').then(m => m.TrackParcelComponent)
+  },
+  {
+    path: 'customer/account',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/customer/account/account.component').then(m => m.AccountComponent)
   },
 
   { path: '**', redirectTo: '' }
