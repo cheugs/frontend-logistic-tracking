@@ -1,1 +1,68 @@
-<p>track-parcel works!</p>
+<section class="track-page">
+  <header class="page-header">
+    <button type="button" class="back-button" routerLink="/customer/dashboard">←</button>
+    <h1>Track Parcel</h1>
+    <span></span>
+  </header>
+
+  <ng-container *ngIf="!loading(); else loadingState">
+    <section class="map-card">
+      <div class="map-header">
+        <h2>Delivery Routes</h2>
+        <p>Source to destination itineraries for ongoing deliveries</p>
+      </div>
+
+      <div class="map-panel">
+        <ng-container *ngFor="let parcel of parcels(); let i = index">
+          <div class="route-route" [style.transform]="'translateY(' + (i * 18) + 'px)'">
+            <div class="route-line source"></div>
+            <div class="route-marker source"></div>
+            <div class="route-line active"></div>
+            <div class="route-marker current"></div>
+            <div class="route-line destination"></div>
+            <div class="route-marker destination"></div>
+          </div>
+        </ng-container>
+
+        <div class="legend">
+          <span><i class="dot source"></i> Source</span>
+          <span><i class="dot current"></i> Current</span>
+          <span><i class="dot destination"></i> Destination</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="parcel-list" *ngIf="parcels().length; else emptyState">
+      <article class="parcel-card" *ngFor="let parcel of parcels()">
+        <div class="parcel-copy">
+          <span class="status-pill">{{ parcel.status === 'IN_TRANSIT' ? 'On Delivery' : parcel.status }}</span>
+          <h3>{{ parcel.title }}</h3>
+          <p>{{ parcel.reference }}</p>
+          <p>{{ formatDate(parcel.createdAt) }}</p>
+          <div class="route-details">
+            <span><strong>From:</strong> {{ parcel.source.label }}</span>
+            <span><strong>To:</strong> {{ parcel.destination.label }}</span>
+            <span><strong>Current:</strong> {{ parcel.current.label }}</span>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-circle">
+            <span>{{ parcel.progress }}%</span>
+          </div>
+        </div>
+      </article>
+    </section>
+  </ng-container>
+
+  <ng-template #emptyState>
+    <div class="empty-state">
+      <h3>No ongoing delivery found</h3>
+      <p>Once a parcel is created and in transit, its itinerary will appear here.</p>
+    </div>
+  </ng-template>
+
+  <ng-template #loadingState>
+    <div class="loading-card"></div>
+    <div class="loading-card"></div>
+  </ng-template>
+</section>

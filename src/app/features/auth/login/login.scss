@@ -1,0 +1,89 @@
+.auth-page {
+  min-height: 100dvh;
+  padding: 32px 20px;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  background: #f6f7fb;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #14142b;
+}
+
+h2 {
+  text-align: center;
+  margin: 0;
+  font-size: 24px;
+}
+
+.sub {
+  text-align: center;
+  margin: 0 0 10px;
+  color: #666c80;
+}
+
+.form {
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.fld {
+  display: grid;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2544;
+}
+
+input {
+  min-height: 50px;
+  border-radius: 14px;
+  border: 1px solid #e5e5ee;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.btn-red {
+  min-height: 54px;
+  border: none;
+  border-radius: 16px;
+  background: #d20f49;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.link {
+  text-align: center;
+  color: #666c80;
+}
+
+.link a {
+  color: #c51a49;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.error {
+  color: #d32f2f;
+  margin: 0;
+}

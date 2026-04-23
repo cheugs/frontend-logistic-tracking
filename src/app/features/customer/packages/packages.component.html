@@ -1,0 +1,43 @@
+<section class="packages-page">
+  <header class="page-header">
+    <button type="button" class="back-button" routerLink="/customer/dashboard">←</button>
+    <h1>Packages</h1>
+    <span class="spacer"></span>
+  </header>
+
+  <nav class="tabs" aria-label="Package categories">
+    <button type="button" [class.active]="activeTab() === 'SCHEDULED'" (click)="setTab('SCHEDULED')">Scheduled</button>
+    <button type="button" [class.active]="activeTab() === 'IN_TRANSIT'" (click)="setTab('IN_TRANSIT')">On Delivery</button>
+    <button type="button" [class.active]="activeTab() === 'DELIVERED'" (click)="setTab('DELIVERED')">Completed</button>
+  </nav>
+
+  <div class="tab-rule"></div>
+
+  <ng-container *ngIf="!loading(); else loadingState">
+    <section class="packages-list" *ngIf="visibleParcels().length; else emptyState">
+      <article class="package-card" *ngFor="let parcel of visibleParcels(); trackBy: trackByParcelId" (click)="openParcel(parcel)">
+        <div class="package-copy">
+          <app-status-badge [status]="parcel.status"></app-status-badge>
+          <h2>{{ parcel.title }}</h2>
+          <p>{{ parcel.reference }}</p>
+          <p>{{ formatDate(parcel.createdAt) }}</p>
+        </div>
+        <div class="package-art" aria-hidden="true">📦</div>
+      </article>
+    </section>
+  </ng-container>
+
+  <ng-template #emptyState>
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No packages in this category</h3>
+      <p>Your parcel history will appear here once you create or receive shipments.</p>
+    </div>
+  </ng-template>
+
+  <ng-template #loadingState>
+    <div class="skeleton-group">
+      <div class="skeleton-card" *ngFor="let _ of [1,2,3,4]"></div>
+    </div>
+  </ng-template>
+</section>

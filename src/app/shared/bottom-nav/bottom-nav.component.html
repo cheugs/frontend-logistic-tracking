@@ -1,0 +1,26 @@
+<nav class="bottom-nav">
+  <a routerLink="/customer/dashboard" [class.active]="isActive('/customer/dashboard')">
+    <span>🏠</span>
+    <small>Home</small>
+  </a>
+
+  <a routerLink="/customer/packages" [class.active]="isActive('/customer/packages')">
+    <span>📦</span>
+    <small>Packages</small>
+  </a>
+
+  <a routerLink="/customer/create-parcel" [class.active]="isActive('/customer/create-parcel')">
+    <span>➕</span>
+    <small>Create Parcel</small>
+  </a>
+
+  <a routerLink="/customer/track-parcel" [class.active]="isActive('/customer/track-parcel')">
+    <span>📍</span>
+    <small>Track Parcel</small>
+  </a>
+
+  <a routerLink="/customer/account" [class.active]="isActive('/customer/account')">
+    <span>👤</span>
+    <small>Account</small>
+  </a>
+</nav>

@@ -1,0 +1,47 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, tap } from 'rxjs';
+import { AuthRequest, AuthResponse, SignupRequest, UserRole, UserResponse } from '../models/auth.models';
+import { TokenStorageService } from './token-storage.service';
+
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly baseUrl = 'http://localhost:8080/logisticsauth';
+
+  constructor(
+    private readonly http: HttpClient,
+    private readonly storage: TokenStorageService
+  ) {}
+
+  login(payload: AuthRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/login`, payload).pipe(
+      tap((res) => this.storage.save(res.token, res.user))
+    );
+  }
+
+  register(payload: SignupRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.baseUrl}/register`, payload).pipe(
+      tap((res) => this.storage.save(res.token, res.user))
+    );
+  }
+
+  logout(): void {
+    this.storage.clear();
+  }
+
+  currentUser(): UserResponse | null {
+    return this.storage.getUser();
+  }
+
+  token(): string | null {
+    return this.storage.getToken();
+  }
+
+  isAuthenticated(): boolean {
+    return this.storage.hasToken();
+  }
+
+  role(): UserRole | null {
+    return this.storage.getUser()?.role ?? null;
+  }
+}

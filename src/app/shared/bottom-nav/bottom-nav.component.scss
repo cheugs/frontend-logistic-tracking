@@ -1,0 +1,33 @@
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  background: #fff;
+  border-top: 1px solid #ececf2;
+  padding: 8px 10px 10px;
+  z-index: 50;
+}
+
+.bottom-nav a {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: #44485e;
+  font-size: 12px;
+  text-align: center;
+}
+
+.bottom-nav a.active {
+  color: #c51a49;
+  font-weight: 700;
+}
+
+.bottom-nav span {
+  font-size: 22px;
+  line-height: 1;
+}

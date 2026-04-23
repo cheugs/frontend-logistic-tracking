@@ -1,0 +1,73 @@
+<section class="create-page">
+  <header class="page-header">
+    <button type="button" class="back-button" routerLink="/customer/dashboard">←</button>
+    <h1>Send Package</h1>
+    <button type="button" class="notify-button">🔔</button>
+  </header>
+
+  <div class="booking-cards">
+    <article class="service-card" [class.active]="selectedMode() === 'INSTANT'" (click)="selectMode('INSTANT')">
+      <div class="service-icon">🕒</div>
+      <div>
+        <h2>Instant Booking</h2>
+        <p>Get your packages delivered right away with our instant delivery option.</p>
+      </div>
+    </article>
+
+    <article class="service-card" [class.active]="selectedMode() === 'SCHEDULED'" (click)="selectMode('SCHEDULED')">
+      <div class="service-icon calendar">📅</div>
+      <div>
+        <h2>Schedule for Later</h2>
+        <p>Plan ahead with our scheduled delivery feature. Choose a specific date.</p>
+      </div>
+    </article>
+  </div>
+
+  <section class="packages-section">
+    <div class="section-title">
+      <h2>Delivery Packages</h2>
+    </div>
+
+    <div class="package-grid">
+      <button type="button" class="package-card" [class.selected]="selectedPackage() === 'SMALL'" (click)="choosePackage('SMALL')">
+        <span class="package-name">Small Delivery</span>
+        <span class="package-meta">1 Day shipping</span>
+        <span class="package-price">4,000 - 10,000 Naira</span>
+      </button>
+
+      <button type="button" class="package-card" [class.selected]="selectedPackage() === 'LARGE'" (click)="choosePackage('LARGE')">
+        <span class="package-name">Large Delivery</span>
+        <span class="package-meta">2 - 3 Days shipping</span>
+        <span class="package-price">15,000 - 25,000 Naira</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="breakdown-section">
+    <div class="section-title">
+      <h2>Package Breakdown</h2>
+    </div>
+
+    <div class="breakdown-table">
+      <div class="table-head">
+        <span>Services</span>
+        <span>Quantity</span>
+        <span>Amount</span>
+      </div>
+
+      <div class="table-row">
+        <span>Light Weight</span>
+        <span>1 - 5KG</span>
+        <span>XAF 4,000</span>
+      </div>
+
+      <div class="table-row">
+        <span>Small Weight</span>
+        <span>6 - 10KG</span>
+        <span>XAF 10,000</span>
+      </div>
+    </div>
+  </section>
+
+  <button type="button" class="primary-button" (click)="proceedToDetails()">Proceed to Details</button>
+</section>

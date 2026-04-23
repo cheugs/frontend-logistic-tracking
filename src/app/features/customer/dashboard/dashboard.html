@@ -1,1 +1,113 @@
-<p>dashboard works!</p>
+<section class="dashboard-page">
+  <header class="dashboard-header">
+    <div class="profile-block" *ngIf="dashboard() as data">
+      <div class="avatar">{{ data.profile.firstName.charAt(0) }}</div>
+      <div>
+        <p class="eyebrow">Hello, {{ data.profile.firstName }}</p>
+        <h1>{{ data.profile.city }}, {{ data.profile.state }}</h1>
+      </div>
+    </div>
+
+    <button class="icon-button" type="button" aria-label="Notifications">
+      <span>🔔</span>
+    </button>
+  </header>
+
+  <ng-container *ngIf="!loading(); else loadingState">
+    <section class="wallet-card" *ngIf="dashboard() as data">
+      <div class="wallet-copy">
+        <p class="wallet-label">Wallet Balance</p>
+        <div class="wallet-amount-row">
+          <h2>{{ walletDisplay() }}</h2>
+          <button type="button" class="ghost-icon" (click)="toggleBalance()" [attr.aria-label]="showBalance() ? 'Hide wallet balance' : 'Show wallet balance'">
+            {{ showBalance() ? '👁️' : '🙈' }}
+          </button>
+        </div>
+      </div>
+
+      <form class="topup-panel" [formGroup]="topUpForm" (ngSubmit)="submitTopUp()">
+        <label class="sr-only" for="topUpAmount">Top up amount</label>
+        <input id="topUpAmount" type="number" min="100" step="100" formControlName="amount" placeholder="Enter amount" />
+        <button class="topup-button" type="submit" [disabled]="toppingUp()">
+          {{ toppingUp() ? 'Funding...' : 'Top up' }}
+        </button>
+      </form>
+
+      <p class="helper success" *ngIf="topUpMessage()">{{ topUpMessage() }}</p>
+      <p class="helper error" *ngIf="topUpForm.controls.amount.invalid && topUpForm.controls.amount.touched">
+        Enter a valid amount of at least ₦100.
+      </p>
+    </section>
+
+    <section class="track-card">
+      <div class="section-heading">
+        <h2>Track your shipping</h2>
+      </div>
+
+      <form class="track-form" [formGroup]="trackForm" (ngSubmit)="submitTracking()">
+        <input formControlName="parcelId" type="text" placeholder="Enter or scan package ID" />
+        <button type="submit" class="scan-button" aria-label="Track package">⌕</button>
+      </form>
+
+      <p class="helper error" *ngIf="trackForm.controls.parcelId.invalid && trackForm.controls.parcelId.touched">
+        Enter a valid parcel ID to continue.
+      </p>
+
+      <div class="quick-actions">
+        <button class="action-card action-primary" type="button" (click)="goToCreateParcel()">
+          <span class="action-icon">📦</span>
+          <span>
+            <strong>Send</strong>
+            <small>Package</small>
+          </span>
+        </button>
+
+        <button class="action-card" type="button" (click)="submitTracking()">
+          <span class="action-icon dark">📍</span>
+          <span>
+            <strong>Track</strong>
+            <small>Package</small>
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <section class="shipping-section">
+      <div class="section-heading">
+        <h2>Current Shipping</h2>
+        <a routerLink="/customer/history">See All</a>
+      </div>
+
+      <div class="shipping-list" *ngIf="activeParcels().length; else emptyState">
+        <article class="shipping-card" *ngFor="let parcel of activeParcels(); trackBy: trackByParcelId" (click)="viewParcel(parcel)">
+          <div class="shipping-copy">
+            <app-status-badge [status]="parcel.status"></app-status-badge>
+            <h3>{{ parcel.title }}</h3>
+            <p>{{ parcel.reference }}</p>
+            <p>{{ formatDate(parcel.createdAt) }}</p>
+            <p class="destination" *ngIf="parcel.destination">To {{ parcel.destination }}</p>
+          </div>
+          <div class="package-art" aria-hidden="true">📦</div>
+        </article>
+      </div>
+    </section>
+  </ng-container>
+
+  <ng-template #emptyState>
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No active shipments yet</h3>
+      <p>Create a parcel to start tracking deliveries from your dashboard.</p>
+      <button type="button" class="empty-cta" (click)="goToCreateParcel()">Create Parcel</button>
+    </div>
+  </ng-template>
+
+  <ng-template #loadingState>
+    <div class="skeleton-group">
+      <div class="skeleton skeleton-wallet"></div>
+      <div class="skeleton skeleton-track"></div>
+      <div class="skeleton skeleton-list"></div>
+      <div class="skeleton skeleton-list"></div>
+    </div>
+  </ng-template>
+</section>

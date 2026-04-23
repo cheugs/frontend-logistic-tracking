@@ -1,0 +1,163 @@
+:host {
+  display: block;
+}
+
+.packages-page {
+  min-height: 100dvh;
+  background: #f6f7fb;
+  padding: 18px 16px 92px;
+  color: #14142b;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.back-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ececf2;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+
+.tabs button {
+  padding: 14px 4px 12px;
+  border: none;
+  background: transparent;
+  color: #20253d;
+  font-size: 15px;
+  font-weight: 500;
+  position: relative;
+}
+
+.tabs button.active {
+  color: #c51a49;
+  font-weight: 700;
+}
+
+.tabs button.active::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 2px;
+  background: #c51a49;
+  border-radius: 999px;
+}
+
+.tab-rule {
+  height: 1px;
+  background: #e7e7ef;
+  margin-bottom: 16px;
+}
+
+.packages-list {
+  display: grid;
+  gap: 14px;
+}
+
+.package-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid #ececf2;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 12px 26px rgba(17, 24, 39, 0.05);
+  cursor: pointer;
+}
+
+.package-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.package-copy h2,
+.package-copy p {
+  margin: 0;
+}
+
+.package-copy h2 {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.package-copy p {
+  font-size: 14px;
+  color: #666c80;
+}
+
+.package-art {
+  font-size: 34px;
+  flex-shrink: 0;
+}
+
+.empty-state {
+  padding: 34px 18px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #ececf2;
+  border-radius: 18px;
+  margin-top: 14px;
+}
+
+.empty-icon {
+  font-size: 38px;
+  margin-bottom: 10px;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #666c80;
+}
+
+.skeleton-group {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.skeleton-card {
+  height: 128px;
+  border-radius: 18px;
+  background: linear-gradient(90deg, #ececf3 25%, #f7f7fb 50%, #ececf3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (min-width: 768px) {
+  .packages-page {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+}

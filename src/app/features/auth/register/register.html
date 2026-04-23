@@ -1,1 +1,57 @@
-<p>register works!</p>
+<div class="auth-page">
+  <div class="auth-logo">
+    <svg viewBox="0 0 48 48" fill="none" width="48" height="48">
+      <rect x="6" y="14" width="36" height="28" rx="5" fill="#D01A27"></rect>
+      <rect x="14" y="8" width="20" height="12" rx="3" fill="none" stroke="#D01A27" stroke-width="3"></rect>
+      <line x1="16" y1="26" x2="32" y2="26" stroke="white" stroke-width="2" stroke-dasharray="4 3"></line>
+      <circle cx="24" cy="34" r="3" fill="white"></circle>
+    </svg>
+    <span class="brand-name">QuickDeliver</span>
+  </div>
+
+  <h2>Create Account</h2>
+  <p class="sub">Start sending and tracking packages today</p>
+
+  <form class="form" (ngSubmit)="register()">
+    <div class="fld">
+      <label class="form-label">First Name</label>
+      <input type="text" name="firstName" [(ngModel)]="firstName" placeholder="Enter your first name" required />
+    </div>
+
+    <div class="fld">
+      <label class="form-label">Last Name</label>
+      <input type="text" name="lastName" [(ngModel)]="lastName" placeholder="Enter your last name" required />
+    </div>
+
+    <div class="fld">
+      <label class="form-label">Email</label>
+      <input type="email" name="email" [(ngModel)]="email" placeholder="Enter your email" required />
+    </div>
+
+    <div class="fld">
+      <label class="form-label">Phone Number</label>
+      <input type="text" name="phoneNumber" [(ngModel)]="phoneNumber" placeholder="Enter your phone number" required />
+    </div>
+
+    <div class="fld">
+      <label class="form-label">Address</label>
+      <input type="text" name="address" [(ngModel)]="address" placeholder="Enter your address" required />
+    </div>
+
+    <div class="fld">
+      <label class="form-label">Password</label>
+      <input type="password" name="password" [(ngModel)]="password" placeholder="Create a password" required />
+    </div>
+
+    <p class="note">Only customers can sign up. Admin and delivery agent accounts are created by the system.</p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+
+    <button type="submit" class="btn-red" [disabled]="loading">
+      {{ loading ? 'Creating...' : 'Create Account' }}
+    </button>
+  </form>
+
+  <p class="link">
+    Already have an account? <a routerLink="/login">Sign In</a>
+  </p>
+</div>

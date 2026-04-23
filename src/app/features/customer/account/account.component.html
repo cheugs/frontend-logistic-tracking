@@ -1,0 +1,82 @@
+<section class="account-page">
+  <header class="page-header">
+    <button type="button" class="back-button" (click)="goToDashboard()">←</button>
+    <h1>Account</h1>
+    <button type="button" class="edit-button" *ngIf="!editing()" (click)="enableEdit()">Edit</button>
+    <button type="button" class="edit-button cancel" *ngIf="editing()" (click)="cancelEdit()">Cancel</button>
+  </header>
+
+  <ng-container *ngIf="!loading(); else loadingState">
+    <section class="profile-card" *ngIf="account() as data">
+      <div class="avatar">{{ data.avatarInitials }}</div>
+      <div class="profile-meta">
+        <h2>{{ data.firstName }} {{ data.lastName }}</h2>
+        <p>{{ data.email }}</p>
+        <p>{{ data.phone }}</p>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card">
+        <span>City</span>
+        <strong>{{ account()?.city }}</strong>
+      </div>
+      <div class="stat-card">
+        <span>State</span>
+        <strong>{{ account()?.state }}</strong>
+      </div>
+    </section>
+
+    <form class="account-form" [formGroup]="accountForm" (ngSubmit)="saveAccount()">
+      <div class="form-grid">
+        <section class="form-group">
+          <label>First Name</label>
+          <input type="text" formControlName="firstName" [readonly]="!editing()" />
+        </section>
+
+        <section class="form-group">
+          <label>Last Name</label>
+          <input type="text" formControlName="lastName" [readonly]="!editing()" />
+        </section>
+      </div>
+
+      <section class="form-group">
+        <label>Email</label>
+        <input type="email" formControlName="email" [readonly]="!editing()" />
+      </section>
+
+      <section class="form-group">
+        <label>Phone</label>
+        <input type="text" formControlName="phone" [readonly]="!editing()" />
+      </section>
+
+      <div class="form-grid">
+        <section class="form-group">
+          <label>City</label>
+          <input type="text" formControlName="city" [readonly]="!editing()" />
+        </section>
+
+        <section class="form-group">
+          <label>State</label>
+          <input type="text" formControlName="state" [readonly]="!editing()" />
+        </section>
+      </div>
+
+      <section class="form-group">
+        <label>Address</label>
+        <textarea rows="3" formControlName="address" [readonly]="!editing()"></textarea>
+      </section>
+
+      <p class="success" *ngIf="saveMessage()">{{ saveMessage() }}</p>
+
+      <button type="submit" class="primary-button" [disabled]="!editing()">
+        Save Changes
+      </button>
+    </form>
+  </ng-container>
+
+  <ng-template #loadingState>
+    <div class="loading-card"></div>
+    <div class="loading-card short"></div>
+  </ng-template>
+</section>
