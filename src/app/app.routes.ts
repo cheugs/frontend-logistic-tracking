@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/admin/dashboard', pathMatch: 'full' },
+  // { path: '', redirectTo: '/admin/dashboard', pathMatch: 'full' },
+  { path: ''},
   { 
     path: 'admin', 
     loadChildren: () => import('./features/admin/admin-module').then(m => m.AdminModule)
@@ -15,5 +16,6 @@ export const routes: Routes = [
     loadChildren: () => import('./features/customer/customer-module').then(m => m.CustomerModule)
   },
 
-  { path: '**', redirectTo: '/admin/dashboard' }
+  { path: '**'}
+  // { path: '**', redirectTo: '/admin/dashboard' }
 ];
