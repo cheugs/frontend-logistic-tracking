@@ -8,6 +8,7 @@ import { TrackParcelComponent } from './track-parcel/track-parcel.component';
 import { AccountComponent } from './account/account.component';
 
 export const routes: Routes = [
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
     path: 'dashboard',
     component: DashboardComponent,

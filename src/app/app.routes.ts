@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 
+import { OnboardingComponent } from './features/onboarding/onboarding.component';
+
 export const routes: Routes = [
-  // { path: '', redirectTo: '/admin/dashboard', pathMatch: 'full' },
-  { path: ''},
+  { path: '', redirectTo: '/onboarding', pathMatch: 'full' },
+  { path: 'onboarding', component: OnboardingComponent },
   { 
     path: 'admin', 
     loadChildren: () => import('./features/admin/admin-module').then(m => m.AdminModule)
@@ -16,6 +18,5 @@ export const routes: Routes = [
     loadChildren: () => import('./features/customer/customer-module').then(m => m.CustomerModule)
   },
 
-  { path: '**'}
-  // { path: '**', redirectTo: '/admin/dashboard' }
+  { path: '**', redirectTo: '/onboarding' }
 ];
