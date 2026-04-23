@@ -13,8 +13,8 @@ import { Router } from '@angular/router';
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './onboarding/onboarding.component.html',
-  styleUrls: ['./onboarding/onboarding.component.scss']
+  templateUrl: './onboarding.component.html',
+  styleUrls: ['./onboarding.component.scss']
 })
 export class OnboardingComponent {
   current = signal(0);

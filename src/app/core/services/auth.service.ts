@@ -3,10 +3,11 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { AuthRequest, AuthResponse, SignupRequest, UserRole, UserResponse } from '../models/auth.models';
 import { TokenStorageService } from './token-storage.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly baseUrl = 'http://localhost:8080/logisticsauth';
+  private readonly baseUrl = environment.authUrl;
 
   constructor(
     private readonly http: HttpClient,

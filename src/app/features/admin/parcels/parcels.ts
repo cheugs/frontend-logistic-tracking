@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SidebarComponent } from '../../../shared/sidebar/sidebar';
+import { ParcelAdminService } from '../../../core/services/parcel-admin.service';
+import { ParcelStatus } from '../../../core/models/parcel.model';
+import { inject } from '@angular/core';
 
 interface Parcel {
   id: string;
@@ -13,7 +16,7 @@ interface Parcel {
   destination: string;
   weight: number;
   fragilityLevel: number;
-  status: 'CREATED' | 'PAID' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  status: ParcelStatus;
   statusColor: string;
   statusBg: string;
   estimatedDelivery: Date;
@@ -40,124 +43,7 @@ interface StatCard {
   imports: [CommonModule, FormsModule, SidebarComponent]
 })
 export class AdminParcelsComponent implements OnInit {
-  // Sample parcels data
-  parcels: Parcel[] = [
-    {
-      id: '1',
-      trackingNumber: 'AD345Jk758',
-      senderName: 'John Doe',
-      receiverName: 'Jane Smith',
-      origin: 'Berlin Central Hub',
-      destination: 'Munich Logistics Center',
-      weight: 5.5,
-      fragilityLevel: 3,
-      status: 'IN_TRANSIT',
-      statusColor: '#2563EB',
-      statusBg: '#EFF6FF',
-      estimatedDelivery: new Date('2025-01-25'),
-      createdAt: new Date('2025-01-21'),
-      cost: 45.50,
-      assignedAgent: 'Max Klinger',
-      progress: 66,
-      currentLocation: 'Nuremberg'
-    },
-    {
-      id: '2',
-      trackingNumber: 'FR156KL89K',
-      senderName: 'Alice Johnson',
-      receiverName: 'Bob Williams',
-      origin: 'Hamburg Port Agency',
-      destination: 'Cologne Rhein Hub',
-      weight: 3.2,
-      fragilityLevel: 7,
-      status: 'PAID',
-      statusColor: '#D97706',
-      statusBg: '#FFFBEB',
-      estimatedDelivery: new Date('2025-01-26'),
-      createdAt: new Date('2025-01-22'),
-      cost: 67.80,
-      assignedAgent: 'Not assigned',
-      progress: 30,
-      currentLocation: 'Hamburg'
-    },
-    {
-      id: '3',
-      trackingNumber: 'LN236NBB9R',
-      senderName: 'Peter Schmidt',
-      receiverName: 'Maria Garcia',
-      origin: 'Frankfurt Airport Logistics',
-      destination: 'Berlin Central Hub',
-      weight: 8.0,
-      fragilityLevel: 2,
-      status: 'CREATED',
-      statusColor: '#6B7280',
-      statusBg: '#F3F4F6',
-      estimatedDelivery: new Date('2025-01-30'),
-      createdAt: new Date('2025-01-23'),
-      cost: 52.30,
-      assignedAgent: 'Not assigned',
-      progress: 0,
-      currentLocation: 'Frankfurt'
-    },
-    {
-      id: '4',
-      trackingNumber: 'HY789MN12K',
-      senderName: 'Thomas Brown',
-      receiverName: 'Sarah Wilson',
-      origin: 'Berlin Central Hub',
-      destination: 'Hamburg Port Agency',
-      weight: 12.5,
-      fragilityLevel: 9,
-      status: 'IN_TRANSIT',
-      statusColor: '#2563EB',
-      statusBg: '#EFF6FF',
-      estimatedDelivery: new Date('2025-01-24'),
-      createdAt: new Date('2025-01-20'),
-      cost: 98.75,
-      assignedAgent: 'Klaus Richter',
-      progress: 85,
-      currentLocation: 'Lübeck'
-    },
-    {
-      id: '5',
-      trackingNumber: 'ZT234PO89M',
-      senderName: 'Emma Davis',
-      receiverName: 'Liam Martinez',
-      origin: 'Munich Logistics Center',
-      destination: 'Cologne Rhein Hub',
-      weight: 2.8,
-      fragilityLevel: 1,
-      status: 'DELIVERED',
-      statusColor: '#10B981',
-      statusBg: '#D1FAE5',
-      estimatedDelivery: new Date('2025-01-22'),
-      createdAt: new Date('2025-01-19'),
-      cost: 38.90,
-      assignedAgent: 'Anna Weber',
-      progress: 100,
-      currentLocation: 'Cologne'
-    },
-    {
-      id: '6',
-      trackingNumber: 'QW567RT34Y',
-      senderName: 'James Wilson',
-      receiverName: 'Sophie Turner',
-      origin: 'Cologne Rhein Hub',
-      destination: 'Frankfurt Airport Logistics',
-      weight: 6.7,
-      fragilityLevel: 5,
-      status: 'CANCELLED',
-      statusColor: '#EF4444',
-      statusBg: '#FEE2E2',
-      estimatedDelivery: new Date('2025-01-28'),
-      createdAt: new Date('2025-01-18'),
-      cost: 0,
-      assignedAgent: 'Not assigned',
-      progress: 0,
-      currentLocation: 'Cologne'
-    }
-  ];
-
+  parcels: Parcel[] = [];
   filteredParcels: Parcel[] = [];
   selectedParcel: Parcel | null = null;
   showStatusModal: boolean = false;
@@ -169,22 +55,77 @@ export class AdminParcelsComponent implements OnInit {
   sortOrder: 'asc' | 'desc' = 'desc';
   activeTab: string = 'all';
 
-  // Status options for filter
-  statusOptions: string[] = ['ALL', 'CREATED', 'PAID', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
+  statusOptions: ParcelStatus[] = ['PENDING_PAYMENT', 'WAITING_FOR_AGENT', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'];
   fragilityOptions: string[] = ['ALL', 'Low (1-3)', 'Medium (4-7)', 'High (8-10)'];
-
-  // Stats cards
   statsCards: StatCard[] = [];
 
   // New status for update
   newStatus: string = '';
 
+  private readonly parcelService = inject(ParcelAdminService);
+
   constructor(private sanitizer: DomSanitizer) {
-    this.filteredParcels = [...this.parcels];
     this.calculateStats();
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.fetchParcels();
+  }
+
+  fetchParcels(): void {
+    this.parcelService.getAllParcels().subscribe((data: any[]) => {
+      this.parcels = data.map(p => this.mapParcel(p));
+      this.filterParcels();
+      this.calculateStats();
+    });
+  }
+
+  private mapParcel(apiParcel: any): Parcel {
+    const status = apiParcel.status as ParcelStatus;
+    const colors = this.getStatusColors(status);
+    
+    return {
+      id: apiParcel.id,
+      trackingNumber: apiParcel.id.substring(0, 8).toUpperCase(),
+      senderName: apiParcel.userId.substring(0, 8),
+      receiverName: apiParcel.receiverName || 'Unknown',
+      origin: apiParcel.sourceAgencyName || apiParcel.sourceManualAddress || 'N/A',
+      destination: apiParcel.destAgencyName || apiParcel.destManualAddress || 'N/A',
+      weight: apiParcel.weight,
+      fragilityLevel: apiParcel.fragility,
+      status: status,
+      statusColor: colors.color,
+      statusBg: colors.bg,
+      estimatedDelivery: new Date(apiParcel.estimatedDeliveryTime || apiParcel.createdAt),
+      createdAt: new Date(apiParcel.createdAt),
+      cost: apiParcel.estimatedCost,
+      assignedAgent: 'Not assigned',
+      progress: this.calculateProgress(status),
+      currentLocation: apiParcel.sourceAgencyName || 'Origin'
+    };
+  }
+
+  private calculateProgress(status: ParcelStatus): number {
+    switch(status) {
+      case 'PENDING_PAYMENT': return 5;
+      case 'WAITING_FOR_AGENT': return 25;
+      case 'IN_TRANSIT': return 65;
+      case 'DELIVERED': return 100;
+      case 'CANCELLED': return 0;
+      default: return 0;
+    }
+  }
+
+  private getStatusColors(status: ParcelStatus): { color: string, bg: string } {
+    const colors: any = {
+      'PENDING_PAYMENT': { color: '#6B7280', bg: '#F3F4F6' },
+      'WAITING_FOR_AGENT': { color: '#D97706', bg: '#FFFBEB' },
+      'IN_TRANSIT': { color: '#2563EB', bg: '#EFF6FF' },
+      'DELIVERED': { color: '#10B981', bg: '#D1FAE5' },
+      'CANCELLED': { color: '#EF4444', bg: '#FEE2E2' }
+    };
+    return colors[status] || colors['PENDING_PAYMENT'];
+  }
 
   calculateStats(): void {
     this.statsCards = [
@@ -255,13 +196,13 @@ export class AdminParcelsComponent implements OnInit {
 
   getStatusIcon(status: string): SafeHtml {
     const icons: any = {
-      'CREATED': this.sanitizer.bypassSecurityTrustHtml(`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      'PENDING_PAYMENT': this.sanitizer.bypassSecurityTrustHtml(`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="16" y1="13" x2="8" y2="13" />
         <line x1="16" y1="17" x2="8" y2="17" />
       </svg>`),
-      'PAID': this.sanitizer.bypassSecurityTrustHtml(`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      'WAITING_FOR_AGENT': this.sanitizer.bypassSecurityTrustHtml(`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10" />
         <path d="M12 2v20M2 12h20" />
       </svg>`),
@@ -279,7 +220,7 @@ export class AdminParcelsComponent implements OnInit {
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>`)
     };
-    return icons[status] || icons['CREATED'];
+    return icons[status] || icons['PENDING_PAYMENT'];
   }
 
   filterParcels(): void {
@@ -418,63 +359,29 @@ export class AdminParcelsComponent implements OnInit {
   }
 
   updateParcelStatus(): void {
-    if (this.selectedParcel && this.newStatus) {
-      const index = this.parcels.findIndex(p => p.id === this.selectedParcel!.id);
-      if (index !== -1) {
-        this.parcels[index].status = this.newStatus as any;
-        
-        switch(this.newStatus) {
-          case 'CREATED':
-            this.parcels[index].progress = 0;
-            break;
-          case 'PAID':
-            this.parcels[index].progress = 10;
-            break;
-          case 'IN_TRANSIT':
-            this.parcels[index].progress = 50;
-            break;
-          case 'DELIVERED':
-            this.parcels[index].progress = 100;
-            break;
-          case 'CANCELLED':
-            this.parcels[index].progress = 0;
-            break;
-        }
-        
-        const statusColors: any = {
-          'CREATED': { color: '#6B7280', bg: '#F3F4F6' },
-          'PAID': { color: '#D97706', bg: '#FFFBEB' },
-          'IN_TRANSIT': { color: '#2563EB', bg: '#EFF6FF' },
-          'DELIVERED': { color: '#10B981', bg: '#D1FAE5' },
-          'CANCELLED': { color: '#EF4444', bg: '#FEE2E2' }
-        };
-        
-        this.parcels[index].statusColor = statusColors[this.newStatus].color;
-        this.parcels[index].statusBg = statusColors[this.newStatus].bg;
-        
-        this.calculateStats();
-        this.filterParcels();
-      }
+    if (this.selectedParcel && this.newStatus === 'CANCELLED') {
+      this.parcelService.cancelParcel(this.selectedParcel.id).subscribe(() => {
+        this.fetchParcels();
+        this.closeStatusModal();
+      });
+    } else {
+      // Status updates other than cancellation would go here if backend supported them manually
+      this.closeStatusModal();
     }
-    this.closeStatusModal();
   }
 
   deleteParcel(id: string): void {
+    // Usually admin wouldn't delete but cancel. 
+    // Implementation left for consistency if needed.
     if (confirm('Are you sure you want to delete this parcel?')) {
-      this.parcels = this.parcels.filter(p => p.id !== id);
-      this.calculateStats();
-      this.filterParcels();
-      
-      if (this.selectedParcel?.id === id) {
-        this.closeDetailsModal();
-      }
+      this.closeDetailsModal();
     }
   }
 
   getStatusColor(status: string): string {
     const colors: any = {
-      'CREATED': '#6B7280',
-      'PAID': '#D97706',
+      'PENDING_PAYMENT': '#6B7280',
+      'WAITING_FOR_AGENT': '#D97706',
       'IN_TRANSIT': '#2563EB',
       'DELIVERED': '#10B981',
       'CANCELLED': '#EF4444'
@@ -484,8 +391,8 @@ export class AdminParcelsComponent implements OnInit {
 
   getStatusBgColor(status: string): string {
     const colors: any = {
-      'CREATED': '#F3F4F6',
-      'PAID': '#FFFBEB',
+      'PENDING_PAYMENT': '#F3F4F6',
+      'WAITING_FOR_AGENT': '#FFFBEB',
       'IN_TRANSIT': '#EFF6FF',
       'DELIVERED': '#D1FAE5',
       'CANCELLED': '#FEE2E2'

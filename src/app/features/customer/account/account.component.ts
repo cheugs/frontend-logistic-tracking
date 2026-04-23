@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -14,6 +14,10 @@ import { CustomerAccount } from '../../../core/models/account.model';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AccountComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+  private readonly accountService = inject(AccountService);
+
   protected readonly loading = signal(true);
   protected readonly editing = signal(false);
   protected readonly saveMessage = signal('');
@@ -30,11 +34,7 @@ export class AccountComponent implements OnInit {
 
   protected readonly account = signal<CustomerAccount | null>(null);
 
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly router: Router,
-    private readonly accountService: AccountService
-  ) {}
+  constructor() {}
 
   ngOnInit(): void {
     this.loadAccount();

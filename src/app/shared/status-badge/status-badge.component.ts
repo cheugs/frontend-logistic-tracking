@@ -36,13 +36,16 @@ export class StatusBadgeComponent {
   get label(): string {
     if (this.status === 'IN_TRANSIT') return 'On Delivery';
     if (this.status === 'DELIVERED') return 'Completed';
-    if (this.status === 'PENDING') return 'Pending';
-    return this.status.replace('_', ' ');
+    if (this.status === 'PENDING_PAYMENT') return 'Pending Payment';
+    if (this.status === 'WAITING_FOR_AGENT') return 'Waiting for Agent';
+    return this.status.toLowerCase().replace('_', ' ');
   }
 
   get statusClass(): string {
     switch (this.status) {
-      case 'CREATED':
+      case 'PENDING_PAYMENT':
+        return 'pending';
+      case 'WAITING_FOR_AGENT':
         return 'created';
       case 'IN_TRANSIT':
         return 'in-transit';
@@ -50,8 +53,6 @@ export class StatusBadgeComponent {
         return 'delivered';
       case 'CANCELLED':
         return 'cancelled';
-      case 'PENDING':
-        return 'pending';
       default:
         return 'pending';
     }

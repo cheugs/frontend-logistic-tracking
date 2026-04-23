@@ -23,7 +23,7 @@ export class PackagesComponent implements OnInit {
     const all = [...this.parcels()].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 
     if (tab === 'SCHEDULED') {
-      return all.filter(p => p.status === 'PENDING' || p.status === 'CREATED');
+      return all.filter(p => p.status === 'PENDING_PAYMENT' || p.status === 'WAITING_FOR_AGENT');
     }
 
     if (tab === 'IN_TRANSIT') {

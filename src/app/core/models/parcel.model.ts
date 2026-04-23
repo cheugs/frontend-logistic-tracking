@@ -1,5 +1,5 @@
-export type ParcelStatus = 'PENDING' | 'CREATED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED';
+export type ParcelStatus = 'PENDING_PAYMENT' | 'WAITING_FOR_AGENT' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED';
 export type DeliveryMode = 'INSTANT' | 'SCHEDULED';
 export type PackageSize = 'SMALL' | 'LARGE';
 export type PaymentMethod = 'MTN_MOBILE_MONEY' | 'ORANGE_MONEY' | 'WALLET';

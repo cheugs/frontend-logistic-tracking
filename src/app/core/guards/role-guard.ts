@@ -23,7 +23,7 @@ function defaultRoute(role: UserRole): string {
   switch (role) {
     case 'ADMIN':
       return '/admin/dashboard';
-    case 'DELIVERY_AGENT':
+    case 'AGENT':
       return '/agent/dashboard';
     default:
       return '/customer/dashboard';

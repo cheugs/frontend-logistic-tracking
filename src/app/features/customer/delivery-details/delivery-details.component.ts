@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -15,6 +15,11 @@ import { WalletService } from '../../../shared/services/wallet.service';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DeliveryDetailsComponent implements OnInit {
+  public readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
+  private readonly parcelService = inject(ParcelService);
+  private readonly walletService = inject(WalletService);
+
   protected readonly currentStep = signal<'DETAILS' | 'PAYMENT'>('DETAILS');
   protected readonly paymentMethods: { id: PaymentMethod; label: string; subtitle: string }[] = [
     { id: 'MTN_MOBILE_MONEY', label: 'MTN Mobile Money', subtitle: 'Pay with your MTN MoMo wallet' },
@@ -57,16 +62,11 @@ export class DeliveryDetailsComponent implements OnInit {
     receiverAddress: [''],
     weight: [1, [Validators.required, Validators.min(0.1)]],
     fragility: [3, [Validators.required, Validators.min(1), Validators.max(10)]],
-    status: ['PENDING' as const, Validators.required],
+    status: ['PENDING_PAYMENT' as const, Validators.required],
     landmark: ['']
   });
 
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly router: Router,
-    private readonly parcelService: ParcelService,
-    private readonly walletService: WalletService
-  ) {}
+  constructor() {}
 
   ngOnInit(): void {
     this.computedAmount.set(this.parcelService.calculateParcelPrice(this.detailsForm.getRawValue(), this.draft));

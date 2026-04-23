@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -13,11 +13,16 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
   selector: 'app-dashboard',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule, StatusBadgeComponent],
-  templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
+  templateUrl: './dashboard.html',
+  styleUrls: ['./dashboard.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent implements OnInit {
+  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+  private readonly dashboardService = inject(CustomerDashboardService);
+  private readonly walletService = inject(WalletService);
+
   protected readonly loading = signal(true);
   protected readonly toppingUp = signal(false);
   protected readonly showBalance = signal(true);
@@ -39,12 +44,7 @@ export class DashboardComponent implements OnInit {
     return this.showBalance() ? this.walletService.formatCurrency(wallet.balance, wallet.currency) : '••••••';
   });
 
-  constructor(
-    private readonly fb: FormBuilder,
-    private readonly router: Router,
-    private readonly dashboardService: CustomerDashboardService,
-    private readonly walletService: WalletService
-  ) {}
+  constructor() {}
 
 
 
