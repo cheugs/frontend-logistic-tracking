@@ -7,12 +7,9 @@ import { LandingComponent } from './landing.component';
 @NgModule({
   imports: [
     CommonModule,
-    FormsModule,
-    LandingRoutingModule,
-    LandingComponent
+    FormsModule
   ],
   exports: [
-    LandingComponent
   ]
 })
 export class LandingModule { }

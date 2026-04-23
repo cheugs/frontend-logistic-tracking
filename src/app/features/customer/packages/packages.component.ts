@@ -7,7 +7,8 @@ import { ParcelSummary, ParcelStatus } from '../../../core/models/parcel.model';
 import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
 
 @Component({
-  selector: 'app-packages', standalone: true,
+  selector: 'app-packages', 
+  standalone: true,
   imports: [CommonModule, RouterModule, BottomNavComponent, StatusBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './packages.component.html',

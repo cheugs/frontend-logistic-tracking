@@ -76,6 +76,16 @@ export class DeliveryDetailsComponent implements OnInit {
     this.computedAmount.set(this.parcelService.calculateParcelPrice(this.detailsForm.getRawValue(), this.draft));
   }
 
+  protected goBack(): void {
+    if (this.currentStep() === 'PAYMENT') {
+      this.currentStep.set('DETAILS');
+      return;
+    }
+
+    this.router.navigate(['/customer/create-parcel']);
+  }
+
+
   protected selectPayment(method: PaymentMethod): void {
     this.selectedPayment.set(method);
   }

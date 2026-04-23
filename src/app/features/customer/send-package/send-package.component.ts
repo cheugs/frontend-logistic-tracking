@@ -6,7 +6,8 @@ import { BottomNavComponent } from '../../../shared/bottom-nav/bottom-nav.compon
 import { CreateParcelDraft } from '../../../core/models/parcel.model';
 
 @Component({
-  selector: 'app-send-package', standalone: true,
+  selector: 'app-send-package', 
+  standalone: true,
   imports: [CommonModule, RouterModule, BottomNavComponent, ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './create-parcel.html',
