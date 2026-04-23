@@ -162,6 +162,7 @@ export class AdminUsersComponent implements OnInit {
   selectedUser: User | null = null;
   showDetailsModal: boolean = false;
   showRoleModal: boolean = false;
+  showAddUserModal: boolean = false;
   searchTerm: string = '';
   selectedRole: string = '';
   selectedStatus: string = '';
@@ -175,6 +176,17 @@ export class AdminUsersComponent implements OnInit {
 
   // New role for update
   newRole: string = '';
+
+  // Add User Modal properties
+  newUser = {
+    name: '',
+    email: '',
+    phone: '',
+    role: 'CUSTOMER',
+    status: 'active',
+    address: '',
+    department: ''
+  };
 
   // Stats
   statsCards: StatCard[] = [];
@@ -215,7 +227,7 @@ export class AdminUsersComponent implements OnInit {
         color: '#10B981',
         bgColor: '#D1FAE5',
         trend: 8
-      },
+              },
       {
         label: 'Customers',
         value: customers,
@@ -418,6 +430,84 @@ export class AdminUsersComponent implements OnInit {
         }
       }
     }
+  }
+
+  // Add User Modal methods
+  openAddUserModal(): void {
+    this.resetNewUserForm();
+    this.showAddUserModal = true;
+  }
+
+  closeAddUserModal(): void {
+    this.showAddUserModal = false;
+    this.resetNewUserForm();
+  }
+
+  resetNewUserForm(): void {
+    this.newUser = {
+      name: '',
+      email: '',
+      phone: '',
+      role: 'CUSTOMER',
+      status: 'active',
+      address: '',
+      department: ''
+    };
+  }
+
+  addNewUser(): void {
+    // Validation
+    if (!this.newUser.name || !this.newUser.email || !this.newUser.phone) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.newUser.email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    // Check if email already exists
+    if (this.users.some(u => u.email === this.newUser.email)) {
+      alert('A user with this email already exists');
+      return;
+    }
+
+    // Create initials for avatar
+    const initials = this.newUser.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+
+    // Create new user
+    const newUser: User = {
+      id: (this.users.length + 1).toString(),
+      name: this.newUser.name,
+      email: this.newUser.email,
+      role: this.newUser.role as 'CUSTOMER' | 'AGENT' | 'ADMIN',
+      status: this.newUser.status as 'active' | 'inactive' | 'suspended',
+      avatar: initials,
+      phone: this.newUser.phone,
+      address: this.newUser.address || 'Not specified',
+      createdAt: new Date(),
+      lastLogin: new Date(),
+      totalDeliveries: 0,
+      ...(this.newUser.role === 'AGENT' && {
+        rating: 0,
+        assignedParcels: 0,
+        department: this.newUser.department || 'Delivery'
+      })
+    };
+
+    // Add to users array
+    this.users.push(newUser);
+    
+    // Refresh filtered users and stats
+    this.calculateStats();
+    this.filterUsers();
+    
+    // Close modal and show success
+    this.closeAddUserModal();
+    alert(`User ${newUser.name} has been added successfully!`);
   }
 
   getRoleColor(role: string): string {

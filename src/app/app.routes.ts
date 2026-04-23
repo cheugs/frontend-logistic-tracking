@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from "./core/guards/auth-guard";
 
 export const routes: Routes = [
+
   {
     path: '',
     pathMatch: 'full',
@@ -31,7 +32,6 @@ export const routes: Routes = [
     path: 'agent',
     loadChildren: () => import('./features/agent/agent-module').then(m => m.AgentModule)
   },
-
   {
     path: 'customer/dashboard',
     canActivate: [authGuard],
