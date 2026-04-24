@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import {
@@ -13,12 +13,9 @@ import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly http = inject(HttpClient);
+  private readonly storage = inject(TokenStorageService);
   private readonly baseUrl = `${environment.apiUrl}/logistics/auth`;
-
-  constructor(
-    private readonly http: HttpClient,
-    private readonly storage: TokenStorageService,
-  ) {}
 
   login(payload: AuthRequest): Observable<AuthResponse> {
     return this.http

@@ -9,7 +9,7 @@ export interface ParcelRoute {
   id: string;
   title: string;
   reference: string;
-  status: 'PENDING' | 'CREATED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
+  status: 'PENDING' | 'CREATED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED' | 'PENDING_PAYMENT' | 'WAITING_FOR_AGENT';
   createdAt: string;
   source: TrackingPoint;
   destination: TrackingPoint;

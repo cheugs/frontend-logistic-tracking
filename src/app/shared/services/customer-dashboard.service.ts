@@ -1,29 +1,30 @@
-import { Injectable } from '@angular/core';
-import { forkJoin, map, Observable } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { forkJoin, map, Observable, of } from 'rxjs';
 import { CustomerDashboardData } from '../../core/models/customer-dashboard.model';
 import { ParcelService } from './parcel.service';
 import { WalletService } from './wallet.service';
+import { AccountService } from './account.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CustomerDashboardService {
-  constructor(
-    private readonly walletService: WalletService,
-    private readonly parcelService: ParcelService
-  ) {}
+  private readonly walletService = inject(WalletService);
+  private readonly parcelService = inject(ParcelService);
+  private readonly accountService = inject(AccountService);
 
   getDashboardData(): Observable<CustomerDashboardData> {
     return forkJoin({
       wallet: this.walletService.getWalletSummary(),
-      activeParcels: this.parcelService.getCurrentUserParcels()
+      activeParcels: this.parcelService.getCurrentUserParcels(),
+      account: this.accountService.getAccount()
     }).pipe(
-      map(({ wallet, activeParcels }) => ({
+      map(({ wallet, activeParcels, account }) => ({
         profile: {
-          firstName: 'Ahmad Amine',
-          fullName: 'Mfone Ahmad Amine',
-          city: 'Yaounde',
-          state: 'Centre'
+          firstName: account.firstName,
+          fullName: `${account.firstName} ${account.lastName}`,
+          city: account.city,
+          state: account.state
         },
         wallet,
         activeParcels

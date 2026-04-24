@@ -1,30 +1,61 @@
-import { Injectable, signal } from '@angular/core';
-import { Observable, of, delay } from 'rxjs';
+import { Injectable, signal, inject } from '@angular/core';
+import { Observable, tap, map, of } from 'rxjs';
 import { CustomerAccount } from '../../core/models/account.model';
+import { AuthService } from '../../core/services/auth.service';
+import { UserService } from './user.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AccountService {
-  private readonly accountState = signal<CustomerAccount>({
-    firstName: 'Emmanuel',
-    lastName: 'Adewale',
-    email: 'emmanuel@example.com',
-    phone: '+234 801 234 5678',
-    city: 'Lagos',
-    state: 'Ikeja',
-    address: '12 Admiralty Way, Lekki',
-    avatarInitials: 'EA'
-  });
+  private readonly authService = inject(AuthService);
+  private readonly userService = inject(UserService);
+  
+  private readonly accountState = signal<CustomerAccount | null>(null);
 
   getAccount(): Observable<CustomerAccount> {
-    return of(this.accountState()).pipe(delay(250));
+    const user = this.authService.currentUser();
+    if (!user) return of({} as CustomerAccount);
+
+    return this.userService.getUserById(user.userId).pipe(
+      map(res => ({
+        firstName: res.firstName,
+        lastName: res.lastName,
+        email: res.email,
+        phone: res.phoneNumber,
+        city: res.city || 'Unknown',
+        state: res.state || 'Unknown',
+        address: res.address,
+        avatarInitials: `${res.firstName?.[0] ?? ''}${res.lastName?.[0] ?? ''}`.toUpperCase()
+      })),
+      tap(acc => this.accountState.set(acc))
+    );
   }
 
   updateAccount(payload: CustomerAccount): Observable<CustomerAccount> {
-    const next = { ...payload, avatarInitials: `${payload.firstName?.[0] ?? ''}${payload.lastName?.[0] ?? ''}`.toUpperCase() };
-    this.accountState.set(next);
-    return of(next).pipe(delay(350));
+    const user = this.authService.currentUser();
+    if (!user) return of(payload);
+
+    const updateRequest = {
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      phoneNumber: payload.phone,
+      address: payload.address
+    };
+
+    return this.userService.updateUser(user.userId, updateRequest).pipe(
+      map(res => ({
+        firstName: res.firstName,
+        lastName: res.lastName,
+        email: res.email,
+        phone: res.phoneNumber,
+        city: res.city || 'Unknown',
+        state: res.state || 'Unknown',
+        address: res.address,
+        avatarInitials: `${res.firstName?.[0] ?? ''}${res.lastName?.[0] ?? ''}`.toUpperCase()
+      })),
+      tap(acc => this.accountState.set(acc))
+    );
   }
 
   currentAccount() {
