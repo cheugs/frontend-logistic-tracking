@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, signal, inject } from '@ang
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { CreateParcelDraft, DeliveryDetailsFormValue, PaymentMethod } from '../../../core/models/parcel.model';
+import { CreateParcelDraft, DeliveryDetailsFormValue, PaymentMethod, ParcelStatus} from '../../../core/models/parcel.model';
 import { ParcelService } from '../../../shared/services/parcel.service';
 import { WalletService } from '../../../shared/services/wallet.service';
 
@@ -136,7 +136,7 @@ export class DeliveryDetailsComponent implements OnInit {
   }
 
   private finishParcel(): void {
-    const details ={ ...this.detailsForm.getRawValue() as DeliveryDetailsFormValue, status: 'PENDING_PAYMENT' };
+    const details: DeliveryDetailsFormValue ={ ...this.detailsForm.getRawValue(), status: 'PENDING_PAYMENT' as ParcelStatus };
     this.parcelService.createParcel(details, this.draft, this.computedAmount()).subscribe({
       next: () => {
         this.loadingPayment.set(false);

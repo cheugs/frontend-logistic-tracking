@@ -34,7 +34,7 @@ export class DashboardComponent implements OnInit {
   });
 
   protected readonly trackForm = this.fb.nonNullable.group({
-    parcelId: ['', [Validators.required, Validators.minLength(/^\S.{4,}$/)]]
+    parcelId: ['', [Validators.required, Validators.pattern(/^\S.{4,}$/)]]
   });
 
   protected readonly activeParcels = computed<ParcelSummary[]>(() => this.dashboard()?.activeParcels ?? []);
