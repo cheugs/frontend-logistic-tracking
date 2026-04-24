@@ -1,20 +1,22 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { ParcelService } from '../../../shared/services/parcel.service';
-import { BottomNavComponent } from '../../../shared/bottom-nav/bottom-nav.component';
 import { ParcelSummary, ParcelStatus } from '../../../core/models/parcel.model';
 import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.component';
 
 @Component({
   selector: 'app-packages', 
   standalone: true,
-  imports: [CommonModule, RouterModule, BottomNavComponent, StatusBadgeComponent],
+  imports: [CommonModule, RouterModule, StatusBadgeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './packages.component.html',
   styleUrls: ['./packages.component.scss']
 })
 export class PackagesComponent implements OnInit {
+  private readonly router = inject(Router);
+  private readonly parcelService = inject(ParcelService);
+
   protected readonly loading = signal(true);
   protected readonly activeTab = signal<'SCHEDULED' | 'IN_TRANSIT' | 'DELIVERED'>('IN_TRANSIT');
   protected readonly parcels = signal<ParcelSummary[]>([]);
@@ -34,7 +36,7 @@ export class PackagesComponent implements OnInit {
     return all.filter(p => p.status === 'DELIVERED');
   });
 
-  constructor(private readonly parcelService: ParcelService) {}
+  constructor() {}
 
   ngOnInit(): void {
     this.loadParcels();
@@ -67,7 +69,7 @@ export class PackagesComponent implements OnInit {
   }
 
   protected openParcel(parcel: ParcelSummary): void {
-    window.location.href = `/customer/track-parcel/${parcel.id}`;
+    this.router.navigate(['/customer/track-parcel', parcel.id]);
   }
 
   protected isStatus(parcel: ParcelSummary, status: ParcelStatus): boolean {

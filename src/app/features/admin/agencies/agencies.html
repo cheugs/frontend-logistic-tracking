@@ -129,9 +129,16 @@
           Clear Filters
         </button>
       </div>
+      <div *ngIf="loading" class="no-results">
+        <h3>Loading agencies...</h3>
+      </div>
+      <div *ngIf="!loading && errorMessage" class="no-results">
+        <h3>{{ errorMessage }}</h3>
+        <button class="clear-filters-btn" (click)="retryFetchAgencies()">Retry</button>
+      </div>
 
       <!-- Agencies List View -->
-      <div *ngIf="activeTab === 'agencies'" class="agencies-list">
+      <div *ngIf="!loading && activeTab === 'agencies'" class="agencies-list">
         <div *ngFor="let agency of filteredAgencies" class="agency-card" (click)="viewAgencyDetails(agency)">
           <div class="agency-card-header">
             <div class="agency-info">
@@ -213,7 +220,7 @@
       </div>
 
       <!-- Map View --> 
-<div *ngIf="activeTab === 'map'" class="map-view-container">
+<div *ngIf="!loading && activeTab === 'map'" class="map-view-container">
   <div id="agencyMap" class="agency-map"></div>
   <div class="map-controls">
     <button class="map-control" (click)="zoomIn()">
@@ -237,7 +244,7 @@
 </div>
 
       <!-- Analytics View -->
-      <div *ngIf="activeTab === 'analytics'" class="analytics-container">
+      <div *ngIf="!loading && activeTab === 'analytics'" class="analytics-container">
         <div class="analytics-grid">
           <div class="analytics-card">
             <h4>Agencies by Country</h4>
@@ -257,9 +264,9 @@
             <div class="metric-item">
               <div class="metric-label">Active Rate</div>
               <div class="metric-bar-container">
-                <div class="metric-bar" [style.width.%]="(stats.activeAgencies / stats.totalAgencies) * 100"></div>
+                <div class="metric-bar" [style.width.%]="stats.totalAgencies > 0 ? (stats.activeAgencies / stats.totalAgencies) * 100 : 0"></div>
               </div>
-              <div class="metric-value">{{ ((stats.activeAgencies / stats.totalAgencies) * 100) | number:'1.0-0' }}%</div>
+              <div class="metric-value">{{ (stats.totalAgencies > 0 ? (stats.activeAgencies / stats.totalAgencies) * 100 : 0) | number:'1.0-0' }}%</div>
             </div>
             <div class="metric-item">
               <div class="metric-label">Efficiency Score</div>
@@ -430,7 +437,7 @@
     
     <div class="modal-footer">
       <button class="btn-cancel" (click)="closeModal()">Cancel</button>
-      <button class="btn-save" (click)="saveAgency()">Save Agency</button>
+      <button class="btn-save" [disabled]="saving" (click)="saveAgency()">{{ saving ? 'Saving...' : 'Save Agency' }}</button>
     </div>
   </div>
 </div>

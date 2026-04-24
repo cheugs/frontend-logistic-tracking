@@ -1,6 +1,6 @@
 import { Routes, RouterModule } from '@angular/router';
 import { NgModule } from '@angular/core';
-import { SendPackageComponent } from './send-package/send-package.component';
+import { ParcelWizardComponent } from './parcel-wizard/parcel-wizard.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { DeliveryDetailsComponent } from './delivery-details/delivery-details.component';
 import { PackagesComponent } from './packages/packages.component';
@@ -16,7 +16,7 @@ export const routes: Routes = [
   },
   {
     path: 'create-parcel',
-    component: SendPackageComponent,
+    component: ParcelWizardComponent,
     data: { title: 'Create Parcel' }
   },
   {

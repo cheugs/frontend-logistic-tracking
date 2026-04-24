@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
 import { SidebarAgentComponent } from '../../../shared/sidebar-agent/sidebar-agent';
+import { inject } from '@angular/core';
+import { TripService } from '../../../core/services/trip.service';
+import { TokenStorageService } from '../../../core/services/token-storage.service';
+import { TripResponse } from '../../../core/models/trip.model';
 
 interface CompletedDelivery {
   id: string;
@@ -43,117 +47,16 @@ interface StatsCard {
 })
 export class DeliveryHistoryComponent implements OnInit {
   Math = Math;
+  private readonly tripService = inject(TripService);
+  private readonly storage = inject(TokenStorageService);
 
   // Agent info
   agentName = 'Max Klinger';
   agentAvatar = 'MK';
   
-  // Completed deliveries data
-  completedDeliveries: CompletedDelivery[] = [
-    {
-      id: '1',
-      trackingNumber: 'ZT234PO89M',
-      customerName: 'Emma Davis',
-      customerPhone: '+49 123 456 7890',
-      deliveryAddress: 'Cologne Rhein Hub, Rheinauhafen 23, 50678 Cologne',
-      pickupAddress: 'Munich Logistics Center, Goethestraße 1, 80336 Munich',
-      completedAt: new Date('2025-01-21T14:30:00'),
-      deliveryTime: 45,
-      distance: 392,
-      weight: 2.8,
-      fragilityLevel: 1,
-      earnings: 38.90,
-      rating: 5,
-      customerFeedback: 'Very fast delivery! The package arrived in perfect condition.',
-      status: 'DELIVERED',
-      proofOfDelivery: 'signature.jpg'
-    },
-    {
-      id: '2',
-      trackingNumber: 'HY789MN12K',
-      customerName: 'Sarah Wilson',
-      customerPhone: '+49 123 456 7891',
-      deliveryAddress: 'Hamburg Port Agency, Hafenstraße 15, 20359 Hamburg',
-      pickupAddress: 'Berlin Central Hub, Mohrenstrasse 37, 10117 Berlin',
-      completedAt: new Date('2025-01-20T11:15:00'),
-      deliveryTime: 195,
-      distance: 289,
-      weight: 12.5,
-      fragilityLevel: 9,
-      earnings: 98.75,
-      rating: 4,
-      customerFeedback: 'Careful handling of fragile items. Thank you!',
-      status: 'DELIVERED'
-    },
-    {
-      id: '3',
-      trackingNumber: 'QW567RT34Y',
-      customerName: 'Thomas Brown',
-      customerPhone: '+49 123 456 7892',
-      deliveryAddress: 'Frankfurt Airport Logistics, Flughafenstraße 45, 60549 Frankfurt',
-      pickupAddress: 'Cologne Rhein Hub, Rheinauhafen 23, 50678 Cologne',
-      completedAt: new Date('2025-01-19T16:45:00'),
-      deliveryTime: 260,
-      distance: 392,
-      weight: 6.7,
-      fragilityLevel: 5,
-      earnings: 67.80,
-      rating: 5,
-      customerFeedback: 'Excellent service, very professional driver.',
-      status: 'DELIVERED'
-    },
-    {
-      id: '4',
-      trackingNumber: 'AD345Jk758',
-      customerName: 'Anna Bauer',
-      customerPhone: '+49 123 456 7893',
-      deliveryAddress: 'Goethestraße 1, 10115 Berlin',
-      pickupAddress: 'Berlin Central Hub, Mohrenstrasse 37, 10117 Berlin',
-      completedAt: new Date('2025-01-18T10:00:00'),
-      deliveryTime: 25,
-      distance: 12.5,
-      weight: 5.5,
-      fragilityLevel: 3,
-      earnings: 45.50,
-      rating: 5,
-      customerFeedback: 'Quick and friendly delivery!',
-      status: 'DELIVERED'
-    },
-    {
-      id: '5',
-      trackingNumber: 'FR156KL89K',
-      customerName: 'Bob Williams',
-      customerPhone: '+49 123 456 7894',
-      deliveryAddress: 'Cologne Rhein Hub, Rheinauhafen 23, 50678 Cologne',
-      pickupAddress: 'Hamburg Port Agency, Hafenstraße 15, 20359 Hamburg',
-      completedAt: new Date('2025-01-17T13:20:00'),
-      deliveryTime: 285,
-      distance: 412,
-      weight: 3.2,
-      fragilityLevel: 7,
-      earnings: 67.80,
-      rating: 3,
-      customerFeedback: 'A bit delayed but package was safe.',
-      status: 'DELIVERED'
-    },
-    {
-      id: '6',
-      trackingNumber: 'LN236NBB9R',
-      customerName: 'Maria Garcia',
-      customerPhone: '+49 123 456 7895',
-      deliveryAddress: 'Berlin Central Hub, Mohrenstrasse 37, 10117 Berlin',
-      pickupAddress: 'Frankfurt Airport Logistics, Flughafenstraße 45, 60549 Frankfurt',
-      completedAt: new Date('2025-01-16T15:30:00'),
-      deliveryTime: 360,
-      distance: 547,
-      weight: 8.0,
-      fragilityLevel: 2,
-      earnings: 52.30,
-      rating: 4,
-      customerFeedback: 'Good communication throughout.',
-      status: 'DELIVERED'
-    }
-  ];
+  completedDeliveries: CompletedDelivery[] = [];
+  loading = false;
+  errorMessage = '';
 
   filteredDeliveries: CompletedDelivery[] = [];
   selectedDelivery: CompletedDelivery | null = null;
@@ -173,18 +76,78 @@ export class DeliveryHistoryComponent implements OnInit {
   monthOptions: string[] = ['ALL', 'January', 'February', 'March', 'April', 'May', 'June'];
   
   constructor(private sanitizer: DomSanitizer) {
-    this.filteredDeliveries = [...this.completedDeliveries];
     this.calculateStats();
   }
   
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    const user = this.storage.getUser();
+    if (user) {
+      this.agentName = `${user.firstName} ${user.lastName}`.trim();
+      this.agentAvatar = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'AG';
+    }
+    this.fetchCompletedDeliveries();
+  }
+
+  fetchCompletedDeliveries(): void {
+    const user = this.storage.getUser();
+    if (!user) {
+      this.errorMessage = 'No authenticated agent found.';
+      return;
+    }
+    this.loading = true;
+    this.errorMessage = '';
+    this.tripService.getAgentTrips(user.userId, 'COMPLETED').subscribe({
+      next: (trips: TripResponse[]) => {
+        this.completedDeliveries = trips.map((trip) => this.mapTripToCompletedDelivery(trip));
+        this.filteredDeliveries = [...this.completedDeliveries];
+        this.calculateStats();
+        if (!this.selectedDelivery && this.filteredDeliveries.length > 0) {
+          this.selectedDelivery = this.filteredDeliveries[0];
+        }
+        this.loading = false;
+      },
+      error: () => {
+        this.completedDeliveries = [];
+        this.filteredDeliveries = [];
+        this.calculateStats();
+        this.errorMessage = 'Failed to load delivery history.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private mapTripToCompletedDelivery(trip: TripResponse): CompletedDelivery {
+    const completedAt = trip.startedAt ? new Date(trip.startedAt) : new Date(trip.createdAt);
+    const estimatedMinutes = Math.max(10, Math.round((trip.totalDistanceKm / 45) * 60));
+    return {
+      id: trip.id,
+      trackingNumber: trip.id.substring(0, 8).toUpperCase(),
+      customerName: 'Agency Transfer',
+      customerPhone: 'N/A',
+      deliveryAddress: trip.destAgencyName || 'Destination agency',
+      pickupAddress: trip.sourceAgencyName || 'Source agency',
+      completedAt,
+      deliveryTime: estimatedMinutes,
+      distance: trip.totalDistanceKm,
+      weight: 0,
+      fragilityLevel: 1,
+      earnings: Math.round((trip.totalDistanceKm * 120) / 100),
+      rating: 5,
+      customerFeedback: 'Delivery completed successfully.',
+      status: 'DELIVERED'
+    };
+  }
   
   calculateStats(): void {
     const totalDeliveries = this.completedDeliveries.length;
     const totalEarnings = this.completedDeliveries.reduce((sum, d) => sum + d.earnings, 0);
-    const avgRating = this.completedDeliveries.reduce((sum, d) => sum + d.rating, 0) / totalDeliveries;
+    const avgRating = totalDeliveries > 0
+      ? this.completedDeliveries.reduce((sum, d) => sum + d.rating, 0) / totalDeliveries
+      : 0;
     const totalDistance = this.completedDeliveries.reduce((sum, d) => sum + d.distance, 0);
-    const avgDeliveryTime = Math.round(this.completedDeliveries.reduce((sum, d) => sum + d.deliveryTime, 0) / totalDeliveries);
+    const avgDeliveryTime = totalDeliveries > 0
+      ? Math.round(this.completedDeliveries.reduce((sum, d) => sum + d.deliveryTime, 0) / totalDeliveries)
+      : 0;
     
     this.statsCards = [
       {

@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../../shared/sidebar/sidebar';
 import * as L from 'leaflet';
+import { AgencyService } from '../../../shared/services/agency.service';
+import { Agency, AgencyRequest } from '../../../core/models/agency';
+import { inject } from '@angular/core';
 
 // Fix Leaflet default icon issue
 const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
@@ -20,7 +23,7 @@ const iconDefault = L.icon({
 });
 L.Marker.prototype.options.icon = iconDefault;
 
-interface Agency {
+interface AgencyView {
   id: string;
   name: string;
   country: string;
@@ -52,6 +55,7 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
   private map: any;
   private markers: any[] = [];
   private mapInitialized: boolean = false;
+  private readonly agencyService = inject(AgencyService);
 
   navItems: NavItem[] = [
     {
@@ -95,81 +99,13 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
     },
   ];
 
-  agencies: Agency[] = [
-    {
-      id: '1',
-      name: 'Berlin Central Hub',
-      country: 'Germany',
-      town: 'Berlin',
-      address: 'Mohrenstrasse 37, 10117 Berlin',
-      latitude: 52.5123,
-      longitude: 13.3889,
-      phone: '+49 30 123456',
-      email: 'berlin@logistics.com',
-      status: 'active',
-      createdAt: new Date('2024-01-15'),
-      totalParcels: 1247
-    },
-    {
-      id: '2',
-      name: 'Munich Logistics Center',
-      country: 'Germany',
-      town: 'Munich',
-      address: 'Goethestraße 1, 80336 Munich',
-      latitude: 48.1351,
-      longitude: 11.5820,
-      phone: '+49 89 789012',
-      email: 'munich@logistics.com',
-      status: 'active',
-      createdAt: new Date('2024-02-20'),
-      totalParcels: 892
-    },
-    {
-      id: '3',
-      name: 'Hamburg Port Agency',
-      country: 'Germany',
-      town: 'Hamburg',
-      address: 'Hafenstraße 15, 20359 Hamburg',
-      latitude: 53.5511,
-      longitude: 9.9937,
-      phone: '+49 40 345678',
-      email: 'hamburg@logistics.com',
-      status: 'inactive',
-      createdAt: new Date('2024-03-10'),
-      totalParcels: 456
-    },
-    {
-      id: '4',
-      name: 'Cologne Rhein Hub',
-      country: 'Germany',
-      town: 'Cologne',
-      address: 'Rheinauhafen 23, 50678 Cologne',
-      latitude: 50.9375,
-      longitude: 6.9603,
-      phone: '+49 221 901234',
-      email: 'cologne@logistics.com',
-      status: 'active',
-      createdAt: new Date('2024-04-05'),
-      totalParcels: 678
-    },
-    {
-      id: '5',
-      name: 'Frankfurt Airport Logistics',
-      country: 'Germany',
-      town: 'Frankfurt',
-      address: 'Flughafenstraße 45, 60549 Frankfurt',
-      latitude: 50.1109,
-      longitude: 8.6821,
-      phone: '+49 69 567890',
-      email: 'frankfurt@logistics.com',
-      status: 'active',
-      createdAt: new Date('2024-05-12'),
-      totalParcels: 2345
-    }
-  ];
+  agencies: AgencyView[] = [];
+  loading = false;
+  errorMessage = '';
+  saving = false;
 
-  filteredAgencies: Agency[] = [];
-  selectedAgency: Agency | null = null;
+  filteredAgencies: AgencyView[] = [];
+  selectedAgency: AgencyView | null = null;
   showModal: boolean = false;
   modalMode: 'add' | 'edit' = 'add';
   searchTerm: string = '';
@@ -177,7 +113,7 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
   selectedStatus: string = '';
   activeTab: string = 'agencies';
 
-  formData: Partial<Agency> = {
+  formData: Partial<AgencyView> = {
     name: '',
     country: '',
     town: '',
@@ -199,12 +135,58 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
     averageParcelsPerAgency: 0
   };
 
-  constructor() {
-    this.filteredAgencies = [...this.agencies];
-    this.calculateStats();
+  constructor() {}
+
+  ngOnInit(): void {
+    this.retryFetchAgencies();
   }
 
-  ngOnInit(): void {}
+  private fetchAgencies(): void {
+    this.loading = true;
+    this.errorMessage = '';
+    this.agencyService.getAllAgencies().subscribe({
+      next: (agencies: Agency[]) => {
+        this.agencies = agencies.map((agency) => this.toAgencyView(agency));
+        this.filteredAgencies = [...this.agencies];
+        this.calculateStats();
+        if (this.mapInitialized) {
+          this.addMarkersToMap();
+        }
+        if (this.activeTab === 'map' && this.map) {
+          setTimeout(() => this.map.invalidateSize(), 50);
+        }
+        this.loading = false;
+      },
+      error: () => {
+        this.agencies = [];
+        this.filteredAgencies = [];
+        this.calculateStats();
+        this.errorMessage = 'Failed to load agencies. Please try again.';
+        this.loading = false;
+      }
+    });
+  }
+
+  retryFetchAgencies(): void {
+    this.fetchAgencies();
+  }
+
+  private toAgencyView(agency: Agency): AgencyView {
+    return {
+      id: agency.id,
+      name: agency.name,
+      country: agency.country,
+      town: agency.town,
+      address: agency.addressLine,
+      latitude: agency.latitude,
+      longitude: agency.longitude,
+      phone: 'N/A',
+      email: 'N/A',
+      status: 'active',
+      createdAt: agency.createdAt ? new Date(agency.createdAt) : new Date(),
+      totalParcels: 0
+    };
+  }
 
   ngAfterViewInit(): void {
     // Don't initialize map here since container might not be visible
@@ -309,7 +291,9 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
     this.stats.totalAgencies = this.agencies.length;
     this.stats.activeAgencies = this.agencies.filter(a => a.status === 'active').length;
     this.stats.totalParcelsHandled = this.agencies.reduce((sum, a) => sum + (a.totalParcels || 0), 0);
-    this.stats.averageParcelsPerAgency = Math.round(this.stats.totalParcelsHandled / this.stats.totalAgencies);
+    this.stats.averageParcelsPerAgency = this.stats.totalAgencies > 0
+      ? Math.round(this.stats.totalParcelsHandled / this.stats.totalAgencies)
+      : 0;
   }
 
   filterAgencies(): void {
@@ -369,7 +353,7 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
     this.showModal = true;
   }
 
-  openEditModal(agency: Agency): void {
+  openEditModal(agency: AgencyView): void {
     this.modalMode = 'edit';
     this.formData = { ...agency };
     this.showModal = true;
@@ -381,35 +365,62 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
   }
 
   saveAgency(): void {
+    this.errorMessage = '';
     if (this.modalMode === 'add') {
-      const newAgency: Agency = {
-        id: (this.agencies.length + 1).toString(),
-        name: this.formData.name!,
-        country: this.formData.country!,
-        town: this.formData.town!,
-        address: this.formData.address!,
-        latitude: this.formData.latitude!,
-        longitude: this.formData.longitude!,
-        phone: this.formData.phone!,
-        email: this.formData.email!,
-        status: this.formData.status as 'active' | 'inactive',
-        createdAt: new Date(),
-        totalParcels: 0
+      const request: AgencyRequest = {
+        name: this.formData.name || '',
+        country: this.formData.country || '',
+        town: this.formData.town || '',
+        addressLine: this.formData.address || '',
+        latitude: this.formData.latitude ?? 0,
+        longitude: this.formData.longitude ?? 0
       };
-      this.agencies.push(newAgency);
-    } else if (this.modalMode === 'edit' && this.formData.id) {
-      const index = this.agencies.findIndex(a => a.id === this.formData.id);
-      if (index !== -1) {
-        this.agencies[index] = { ...this.agencies[index], ...this.formData };
+      this.saving = true;
+      this.agencyService.createAgency(request).subscribe({
+        next: (agency) => {
+          this.agencies.unshift(this.toAgencyView(agency));
+          this.calculateStats();
+          this.filterAgencies();
+          if (this.mapInitialized) {
+            this.addMarkersToMap();
+          }
+          this.saving = false;
+          this.closeModal();
+        },
+        error: () => {
+          this.errorMessage = 'Failed to create agency. Please verify fields and retry.';
+          this.saving = false;
+        }
+      });
+      return;
+    } else if (this.modalMode === 'edit') {
+      if (!this.formData.id) {
+        this.closeModal();
+        return;
       }
+      const index = this.agencies.findIndex((a) => a.id === this.formData.id);
+      if (index !== -1) {
+        this.agencies[index] = {
+          ...this.agencies[index],
+          name: this.formData.name || this.agencies[index].name,
+          country: this.formData.country || this.agencies[index].country,
+          town: this.formData.town || this.agencies[index].town,
+          address: this.formData.address || this.agencies[index].address,
+          latitude: this.formData.latitude ?? this.agencies[index].latitude,
+          longitude: this.formData.longitude ?? this.agencies[index].longitude,
+          phone: this.formData.phone || this.agencies[index].phone,
+          email: this.formData.email || this.agencies[index].email,
+          status: (this.formData.status as 'active' | 'inactive') || this.agencies[index].status
+        };
+        this.calculateStats();
+        this.filterAgencies();
+        if (this.mapInitialized) {
+          this.addMarkersToMap();
+        }
+      }
+      this.closeModal();
+      return;
     }
-    
-    this.calculateStats();
-    this.filterAgencies();
-    if (this.mapInitialized) {
-      this.addMarkersToMap();
-    }
-    this.closeModal();
   }
 
   deleteAgency(id: string): void {
@@ -427,7 +438,7 @@ export class AdminAgenciesComponent implements OnInit, AfterViewInit {
     }
   }
 
-  viewAgencyDetails(agency: Agency): void {
+  viewAgencyDetails(agency: AgencyView): void {
     this.selectedAgency = agency;
   }
 

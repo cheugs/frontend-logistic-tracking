@@ -2,14 +2,14 @@ import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { SidebarAgentComponent } from '../../../shared/sidebar-agent/sidebar-agent';
 import * as L from 'leaflet';
 import { TripService } from '../../../core/services/trip.service';
 import { TokenStorageService } from '../../../core/services/token-storage.service';
 import { TripResponse, TripStatus } from '../../../core/models/trip.model';
 import { inject, OnDestroy } from '@angular/core';
-import { interval, startWith, Subject, switchMap, takeUntil } from 'rxjs';
+import { forkJoin, interval, startWith, Subject, takeUntil } from 'rxjs';
 
 // Fix Leaflet default icon issue
 const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
@@ -30,20 +30,19 @@ L.Marker.prototype.options.icon = iconDefault;
 interface DeliveryTask {
   id: string;
   trackingNumber: string;
+  tripStatus: TripStatus;
   pickupAddress: string;
   deliveryAddress: string;
-  customerName: string;
-  customerPhone: string;
   status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
   statusColor: string;
   statusBg: string;
-  fragilityLevel: number;
-  weight: number;
   distance: number;
   estimatedTime: string;
   progress: number;
   currentLocation?: string;
-  priority: 'high' | 'medium' | 'low';
+  parcelsCount: number;
+  segmentCount: number;
+  reachedSegments: number;
   pickupCoords?: { lat: number; lng: number };
   deliveryCoords?: { lat: number; lng: number };
 }
@@ -66,6 +65,14 @@ interface ActivityLog {
   status: string;
 }
 
+interface AvailableParcelItem {
+  id: string;
+  sourceAgencyName: string;
+  destAgencyName: string;
+  weight: number;
+  fragility: number;
+}
+
 @Component({
   selector: 'app-agent-dashboard',
   standalone: true,
@@ -85,45 +92,38 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
   agentName = 'Max Klinger';
   agentAvatar = 'MK';
   agentRating = 4.9;
-  totalDeliveries = 1240;
+  totalTrips = 0;
 
   // Today's deliveries
   todayDeliveries: DeliveryTask[] = [];
+  loading = false;
+  errorMessage = '';
+  actionLoading = false;
+
+  showAssignModal = false;
+  selectedTripForAssignment: DeliveryTask | null = null;
+  availableParcels: AvailableParcelItem[] = [];
+  selectedParcelIds = new Set<string>();
 
   private readonly tripService = inject(TripService);
   private readonly storage = inject(TokenStorageService);
 
-  constructor(private sanitizer: DomSanitizer) {
+  constructor(private sanitizer: DomSanitizer, private router: Router) {
     const user = this.storage.getUser();
     if (user) {
       this.agentName = user.email;
       this.agentAvatar = user.email.substring(0, 2).toUpperCase();
     }
-    this.calculateStats();
+    this.calculateStats(0, 0);
   }
 
   ngOnInit(): void {
     this.fetchTrips();
+    this.startPolling();
   }
 
   fetchTrips(): void {
-    const user = this.storage.getUser();
-    if (!user) return;
-
-    interval(30000)
-      .pipe(
-        startWith(0),
-        switchMap(() => this.tripService.getAgentTrips(user.userId)),
-        takeUntil(this.destroy$)
-      )
-      .subscribe((data: TripResponse[]) => {
-        this.todayDeliveries = data.map(t => this.mapTripToTask(t));
-        this.calculateStats();
-
-        if (this.todayDeliveries.length > 0 && !this.selectedTask) {
-          this.selectTask(this.todayDeliveries[0]);
-        }
-      });
+    this.loadDashboardData();
   }
 
   ngOnDestroy(): void {
@@ -131,38 +131,85 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     this.destroy$.complete();
   }
 
+  private startPolling(): void {
+    interval(30000)
+      .pipe(startWith(0), takeUntil(this.destroy$))
+      .subscribe(() => this.loadDashboardData());
+  }
+
+  private loadDashboardData(): void {
+    const user = this.storage.getUser();
+    if (!user) {
+      this.errorMessage = 'No authenticated agent found.';
+      return;
+    }
+    this.loading = true;
+    this.errorMessage = '';
+    forkJoin({
+      trips: this.tripService.getAgentTrips(user.userId),
+      stats: this.tripService.getAgentStats(user.userId)
+    }).subscribe({
+      next: ({ trips, stats }) => {
+        this.todayDeliveries = trips.map(t => this.mapTripToTask(t));
+        this.totalTrips = stats.totalTrips;
+        this.completedToday = stats.completedTrips;
+        this.calculateStats(stats.activeTrips, stats.totalDistanceKm);
+
+        if (this.todayDeliveries.length > 0 && !this.selectedTask) {
+          this.selectTask(this.todayDeliveries[0]);
+        }
+        if (this.selectedTask) {
+          const refreshedSelected = this.todayDeliveries.find((t) => t.id === this.selectedTask!.id);
+          if (refreshedSelected) this.selectedTask = refreshedSelected;
+        }
+        this.loading = false;
+      },
+      error: () => {
+        this.todayDeliveries = [];
+        this.selectedTask = null;
+        this.calculateStats(0, 0);
+        this.errorMessage = 'Failed to load agent dashboard data.';
+        this.loading = false;
+      }
+    });
+  }
+
   private mapTripToTask(trip: TripResponse): DeliveryTask {
     const status = this.mapTripStatus(trip.status);
     const colors = this.getStatusColors(status);
     const reachedSegments = trip.segments.filter(s => s.status === 'REACHED').length;
-    const progress = trip.status === 'COMPLETED' ? 100 : Math.round((reachedSegments / trip.segmentCount) * 100);
+    const progress = trip.status === 'COMPLETED'
+      ? 100
+      : Math.round((reachedSegments / Math.max(1, trip.segmentCount)) * 100);
+    const firstSegment = trip.segments[0];
+    const lastSegment = trip.segments[trip.segments.length - 1];
 
     return {
       id: trip.id,
       trackingNumber: trip.id.substring(0, 8).toUpperCase(),
+      tripStatus: trip.status,
       pickupAddress: trip.sourceAgencyName || 'Origin Agency',
       deliveryAddress: trip.destAgencyName || 'Destination Agency',
-      customerName: 'Agency Transfer',
-      customerPhone: 'N/A',
       status: status,
       statusColor: colors.color,
       statusBg: colors.bg,
-      fragilityLevel: 1,
-      weight: 0,
       distance: trip.totalDistanceKm,
-      estimatedTime: trip.status === 'COMPLETED' ? 'Finished' : 'In Progress',
+      estimatedTime: trip.status === 'COMPLETED' ? 'Finished' : 'In progress',
       progress: progress,
-      priority: 'medium',
-      pickupCoords: { lat: trip.segments[0].latitude, lng: trip.segments[0].longitude },
-      deliveryCoords: { lat: trip.segments[trip.segments.length - 1].latitude, lng: trip.segments[trip.segments.length - 1].longitude }
+      parcelsCount: trip.parcelsCount,
+      segmentCount: trip.segmentCount,
+      reachedSegments: reachedSegments,
+      pickupCoords: firstSegment ? { lat: firstSegment.latitude, lng: firstSegment.longitude } : undefined,
+      deliveryCoords: lastSegment ? { lat: lastSegment.latitude, lng: lastSegment.longitude } : undefined
     };
   }
 
   private mapTripStatus(status: TripStatus): 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' {
     switch (status) {
       case 'COLLECTING':
-      case 'WAITING': return 'PENDING';
-      case 'IN_PROGRESS': return 'IN_TRANSIT';
+        return 'PENDING';
+      case 'ACTIVE':
+        return 'IN_TRANSIT';
       case 'COMPLETED': return 'DELIVERED';
       default: return 'PENDING';
     }
@@ -274,7 +321,7 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     });
 
     const deliveryMarker = L.marker([task.deliveryCoords.lat, task.deliveryCoords.lng], { icon: deliveryIcon })
-      .bindPopup(`<strong>📍 Delivery</strong><br/>${task.deliveryAddress.substring(0, 30)}...<br/>Customer: ${task.customerName}`)
+      .bindPopup(`<strong>📍 Destination</strong><br/>${task.deliveryAddress.substring(0, 30)}...`)
       .addTo(this.map);
     this.markers.push(deliveryMarker);
 
@@ -334,16 +381,16 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
-  calculateStats(): void {
+  calculateStats(activeTrips = 0, totalDistanceKm = 0): void {
     const pendingCount = this.todayDeliveries.filter(t => t.status === 'PENDING').length;
-    const inTransitCount = this.todayDeliveries.filter(t => t.status === 'IN_TRANSIT').length;
+    const inTransitCount = activeTrips || this.todayDeliveries.filter(t => t.status === 'IN_TRANSIT').length;
     const deliveredCount = this.completedToday;
-    const totalDistance = this.todayDeliveries.reduce((sum, t) => sum + t.distance, 0);
+    const totalDistance = totalDistanceKm || this.todayDeliveries.reduce((sum, t) => sum + t.distance, 0);
 
     this.statsCards = [
       {
-        label: 'Today\'s Deliveries',
-        value: this.todayDeliveries.length,
+        label: 'Total Trips',
+        value: this.totalTrips,
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
           <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
           <circle cx="5.5" cy="18.5" r="2.5"/>
@@ -364,7 +411,7 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
         trend: 12
       },
       {
-        label: 'In Progress',
+        label: 'Active',
         value: inTransitCount,
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
@@ -393,7 +440,7 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.searchTerm) {
       filtered = filtered.filter(task =>
         task.trackingNumber.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        task.customerName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+        task.pickupAddress.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         task.deliveryAddress.toLowerCase().includes(this.searchTerm.toLowerCase())
       );
     }
@@ -437,12 +484,111 @@ export class AgentDashboardComponent implements OnInit, AfterViewInit, OnDestroy
 
   startDelivery(task: DeliveryTask): void {
     if (task.status === 'PENDING') {
-      this.tripService.startTrip(task.id).subscribe(() => {
-        this.fetchTrips();
+      this.actionLoading = true;
+      this.tripService.startTrip(task.id).subscribe({
+        next: () => {
+          this.loadDashboardData();
+          this.router.navigate(['/agent/live-tracking']);
+          this.actionLoading = false;
+        },
+        error: () => {
+          this.errorMessage = 'Failed to start trip.';
+          this.actionLoading = false;
+        }
       });
     } else if (task.status === 'IN_TRANSIT') {
-      console.log('Continuing delivery for trip', task.id);
+      this.router.navigate(['/agent/live-tracking']);
     }
+  }
+
+  getTripStatusLabel(task: DeliveryTask): string {
+    if (task.tripStatus === 'ACTIVE') return 'ACTIVE';
+    if (task.tripStatus === 'COMPLETED') return 'COMPLETED';
+    return 'COLLECTING';
+  }
+
+  getTripGroups(): Array<{ title: string; items: DeliveryTask[] }> {
+    const collecting = this.getFilteredDeliveries().filter((t) => t.tripStatus === 'COLLECTING');
+    const active = this.getFilteredDeliveries().filter((t) => t.tripStatus === 'ACTIVE');
+    const completed = this.getFilteredDeliveries().filter((t) => t.tripStatus === 'COMPLETED');
+    return [
+      { title: 'Collecting', items: collecting },
+      { title: 'Active', items: active },
+      { title: 'Completed', items: completed }
+    ];
+  }
+
+  canAssignParcels(task: DeliveryTask): boolean {
+    return task.tripStatus === 'COLLECTING' && !this.actionLoading;
+  }
+
+  canStartTrip(task: DeliveryTask): boolean {
+    return task.tripStatus === 'COLLECTING' && !this.actionLoading;
+  }
+
+  openTracking(task: DeliveryTask): void {
+    this.selectedTask = task;
+    this.router.navigate(['/agent/live-tracking']);
+  }
+
+  openTripSummary(task: DeliveryTask): void {
+    this.selectTask(task);
+  }
+
+  openAssignParcels(task: DeliveryTask): void {
+    if (!this.canAssignParcels(task)) return;
+    this.selectedTripForAssignment = task;
+    this.showAssignModal = true;
+    this.selectedParcelIds.clear();
+    this.availableParcels = [];
+    this.actionLoading = true;
+    this.tripService.getAvailableParcels(task.id).subscribe({
+      next: (parcels) => {
+        this.availableParcels = parcels.map((p) => ({
+          id: p.id,
+          sourceAgencyName: p.sourceAgencyName,
+          destAgencyName: p.destAgencyName,
+          weight: p.weight,
+          fragility: p.fragility
+        }));
+        this.actionLoading = false;
+      },
+      error: () => {
+        this.errorMessage = 'Failed to load available parcels.';
+        this.actionLoading = false;
+      }
+    });
+  }
+
+  closeAssignParcels(): void {
+    this.showAssignModal = false;
+    this.selectedTripForAssignment = null;
+    this.availableParcels = [];
+    this.selectedParcelIds.clear();
+  }
+
+  toggleParcelSelection(parcelId: string): void {
+    if (this.selectedParcelIds.has(parcelId)) {
+      this.selectedParcelIds.delete(parcelId);
+    } else {
+      this.selectedParcelIds.add(parcelId);
+    }
+  }
+
+  assignSelectedParcels(): void {
+    if (!this.selectedTripForAssignment || this.selectedParcelIds.size === 0) return;
+    this.actionLoading = true;
+    this.tripService.assignParcels(this.selectedTripForAssignment.id, [...this.selectedParcelIds]).subscribe({
+      next: () => {
+        this.closeAssignParcels();
+        this.loadDashboardData();
+        this.actionLoading = false;
+      },
+      error: () => {
+        this.errorMessage = 'Failed to assign selected parcels.';
+        this.actionLoading = false;
+      }
+    });
   }
 
   getPriorityIcon(priority: string): SafeHtml {

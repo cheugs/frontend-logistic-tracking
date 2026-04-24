@@ -1,4 +1,4 @@
-export type TripStatus = 'COLLECTING' | 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TripStatus = 'COLLECTING' | 'ACTIVE' | 'COMPLETED';
 export type SegmentStatus = 'PENDING' | 'REACHED';
 
 export interface SegmentResponse {

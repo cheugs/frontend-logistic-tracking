@@ -4,6 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SidebarComponent } from '../../../shared/sidebar/sidebar';
 import * as L from 'leaflet';
+import { inject } from '@angular/core';
+import { forkJoin } from 'rxjs';
+import { ParcelAdminService } from '../../../core/services/parcel-admin.service';
+import { AgencyService } from '../../../shared/services/agency.service';
+import { UserService } from '../../../shared/services/user.service';
+import { ParcelSummary, ParcelStatus } from '../../../core/models/parcel.model';
+import { User as ApiUser } from '../../../core/models/user';
+import { Agency } from '../../../core/models/agency';
 
 // Fix Leaflet default icon issue
 const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png';
@@ -75,48 +83,15 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
   private map: any;
   private currentMarker: any;
   private routeLine: any;
+  private readonly parcelAdminService = inject(ParcelAdminService);
+  private readonly agencyService = inject(AgencyService);
+  private readonly userService = inject(UserService);
 
-  orders: Order[] = [
-    {
-      id: "#AD345Jk758",
-      status: "In Transit",
-      statusColor: "#2563EB",
-      statusBg: "#EFF6FF",
-      active: true,
-      steps: [
-        { date: "21 Jan", label: "Checking", time: "10:23 AM", done: true },
-        { date: "25 Jan", label: "In transit", time: "12:02 PM", done: true },
-        { date: "25 Jan", label: "Delivered", time: "--:--", done: false },
-      ],
-      progress: 66,
-    },
-    {
-      id: "#FR156KL89K",
-      status: "Checking",
-      statusColor: "#D97706",
-      statusBg: "#FFFBEB",
-      active: false,
-      steps: [
-        { date: "22 Jan", label: "Checking", time: "11:28 AM", done: true },
-        { date: "26 Jan", label: "In transit", time: "--:--", done: false },
-        { date: "30 Jan", label: "Delivered", time: "--:--", done: false },
-      ],
-      progress: 30,
-    },
-    {
-      id: "#LN236NBB9R",
-      status: "Checking",
-      statusColor: "#D97706",
-      statusBg: "#FFFBEB",
-      active: false,
-      steps: [
-        { date: "23 Jan", label: "Checking", time: "09:28 AM", done: true },
-        { date: "27 Jan", label: "In transit", time: "--:--", done: false },
-        { date: "1 Feb", label: "Delivered", time: "--:--", done: false },
-      ],
-      progress: 30,
-    },
-  ];
+  orders: Order[] = [];
+  filteredOrders: Order[] = [];
+  loading = false;
+  errorMessage = '';
+  searchTerm = '';
 
   stats: StatItem[] = [];
   vehicleInfo: VehicleInfo[] = [];
@@ -142,7 +117,15 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
   ];
 
   constructor(private sanitizer: DomSanitizer) {
-    this.activeOrder = this.orders[0];
+    this.activeOrder = {
+      id: '#N/A',
+      status: 'No Data',
+      statusColor: '#6B7280',
+      statusBg: '#F3F4F6',
+      active: true,
+      steps: [],
+      progress: 0
+    };
     this.initializeStats();
     this.initializeVehicleInfo();
     this.initializeOrderDetails();
@@ -150,7 +133,69 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     this.initializeCustomerInfo();
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.reloadDashboardData();
+  }
+
+  reloadDashboardData(): void {
+    this.fetchDashboardData();
+  }
+
+  private fetchDashboardData(): void {
+    this.loading = true;
+    this.errorMessage = '';
+    forkJoin({
+      parcels: this.parcelAdminService.getAllParcels(),
+      users: this.userService.getAllUsers(),
+      agencies: this.agencyService.getAllAgencies()
+    }).subscribe({
+      next: ({ parcels, users, agencies }) => {
+        this.orders = parcels.map((parcel) => this.mapParcelToOrder(parcel));
+        this.filteredOrders = [...this.orders];
+        if (this.orders.length > 0) {
+          this.activeOrder = this.orders[0];
+          this.initializeOrderDetails();
+          this.updateCurrentPosition(this.activeOrder.progress);
+        }
+        this.initializeStats(parcels, users, agencies);
+        this.loading = false;
+      },
+      error: () => {
+        this.orders = [];
+        this.filteredOrders = [];
+        this.initializeStats([], [], []);
+        this.errorMessage = 'Failed to load dashboard data.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private mapParcelToOrder(parcel: ParcelSummary): Order {
+    const statusMap: Record<ParcelStatus, { label: string; color: string; bg: string; progress: number }> = {
+      PENDING_PAYMENT: { label: 'Checking', color: '#D97706', bg: '#FFFBEB', progress: 5 },
+      WAITING_FOR_AGENT: { label: 'Checking', color: '#D97706', bg: '#FFFBEB', progress: 25 },
+      IN_TRANSIT: { label: 'In Transit', color: '#2563EB', bg: '#EFF6FF', progress: 66 },
+      DELIVERED: { label: 'Delivered', color: '#10B981', bg: '#D1FAE5', progress: 100 },
+      CANCELLED: { label: 'Cancelled', color: '#EF4444', bg: '#FEE2E2', progress: 0 }
+    };
+    const mapped = statusMap[parcel.status];
+    const createdDate = new Date(parcel.createdAt);
+    const dateLabel = createdDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const timeLabel = createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return {
+      id: `#${parcel.reference || parcel.id.substring(0, 8).toUpperCase()}`,
+      status: mapped.label,
+      statusColor: mapped.color,
+      statusBg: mapped.bg,
+      active: false,
+      progress: mapped.progress,
+      steps: [
+        { date: dateLabel, label: 'Checking', time: timeLabel, done: true },
+        { date: dateLabel, label: 'In transit', time: '--:--', done: mapped.progress >= 66 },
+        { date: dateLabel, label: 'Delivered', time: '--:--', done: mapped.progress === 100 }
+      ]
+    };
+  }
 
   ngAfterViewInit(): void {
     this.initMap();
@@ -274,38 +319,41 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
     }
   }
 
-  initializeStats(): void {
+  initializeStats(parcels: ParcelSummary[] = [], users: ApiUser[] = [], agencies: Agency[] = []): void {
+    const inTransit = parcels.filter((p) => p.status === 'IN_TRANSIT').length;
     this.stats = [
       { 
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-          <circle cx="12" cy="9" r="3"/>
+          <rect x="2" y="7" width="20" height="14" rx="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
         </svg>`), 
-        label: "Current location", 
-        value: "Torstraße 10117" 
+        label: "Total parcels", 
+        value: `${parcels.length}` 
       },
       { 
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z"/>
+          <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
+          <circle cx="5.5" cy="18.5" r="2.5"/>
+          <circle cx="18.5" cy="18.5" r="2.5"/>
         </svg>`), 
-        label: "Speed", 
-        value: "60 km/h" 
+        label: "In transit", 
+        value: `${inTransit}` 
       },
       { 
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M2 12h20M12 2v20"/>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
         </svg>`), 
-        label: "Kilometers left", 
-        value: "24 km" 
+        label: "Total users", 
+        value: `${users.length}` 
       },
       { 
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-          <polyline points="2 17 12 22 22 17"/>
-          <polyline points="2 12 12 17 22 12"/>
+          <rect x="2" y="7" width="20" height="14" rx="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
         </svg>`), 
-        label: "Last stop", 
-        value: "2 hours ago" 
+        label: "Total agencies", 
+        value: `${agencies.length}` 
       },
     ];
   }
@@ -364,7 +412,13 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit {
   }
 
   onSearch(event: Event): void {
-    const searchTerm = (event.target as HTMLInputElement).value;
-    console.log('Searching for:', searchTerm);
+    this.searchTerm = (event.target as HTMLInputElement).value;
+    this.filteredOrders = this.orders.filter((order) =>
+      order.id.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+      order.status.toLowerCase().includes(this.searchTerm.toLowerCase())
+    );
+    if (this.filteredOrders.length > 0) {
+      this.setActiveOrder(this.filteredOrders[0]);
+    }
   }
 }

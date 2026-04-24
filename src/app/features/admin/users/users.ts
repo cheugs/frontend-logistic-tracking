@@ -3,6 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SidebarComponent } from '../../../shared/sidebar/sidebar';
+import { UserService } from '../../../shared/services/user.service';
+import { User as ApiUser, VerificationStatus } from '../../../core/models/user';
+import { inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../../environments/environment';
+import { SignupRequest } from '../../../core/models/auth.models';
 
 interface User {
   id: string;
@@ -39,124 +45,13 @@ interface StatCard {
 })
 export class AdminUsersComponent implements OnInit {
   Math = Math;
+  private readonly userService = inject(UserService);
+  private readonly http = inject(HttpClient);
 
-  // Sample users data
-  users: User[] = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      role: 'CUSTOMER',
-      status: 'active',
-      avatar: 'JD',
-      phone: '+49 123 456 7890',
-      address: 'Berlin, Germany',
-      createdAt: new Date('2024-01-15'),
-      lastLogin: new Date('2025-01-21'),
-      totalDeliveries: 24
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane.smith@example.com',
-      role: 'CUSTOMER',
-      status: 'active',
-      avatar: 'JS',
-      phone: '+49 123 456 7891',
-      address: 'Munich, Germany',
-      createdAt: new Date('2024-02-20'),
-      lastLogin: new Date('2025-01-20'),
-      totalDeliveries: 18
-    },
-    {
-      id: '3',
-      name: 'Max Klinger',
-      email: 'max.klinger@logistics.com',
-      role: 'AGENT',
-      status: 'active',
-      avatar: 'MK',
-      phone: '+49 123 456 7892',
-      address: 'Hamburg, Germany',
-      createdAt: new Date('2024-01-10'),
-      lastLogin: new Date('2025-01-21'),
-      totalDeliveries: 1240,
-      rating: 4.9,
-      assignedParcels: 5,
-      department: 'Delivery'
-    },
-    {
-      id: '4',
-      name: 'Anna Weber',
-      email: 'anna.weber@logistics.com',
-      role: 'AGENT',
-      status: 'active',
-      avatar: 'AW',
-      phone: '+49 123 456 7893',
-      address: 'Cologne, Germany',
-      createdAt: new Date('2024-03-05'),
-      lastLogin: new Date('2025-01-19'),
-      totalDeliveries: 892,
-      rating: 4.8,
-      assignedParcels: 3,
-      department: 'Delivery'
-    },
-    {
-      id: '5',
-      name: 'Klaus Richter',
-      email: 'klaus.richter@logistics.com',
-      role: 'AGENT',
-      status: 'inactive',
-      avatar: 'KR',
-      phone: '+49 123 456 7894',
-      address: 'Frankfurt, Germany',
-      createdAt: new Date('2024-02-15'),
-      lastLogin: new Date('2025-01-15'),
-      totalDeliveries: 567,
-      rating: 4.7,
-      assignedParcels: 0,
-      department: 'Express'
-    },
-    {
-      id: '6',
-      name: 'Admin User',
-      email: 'admin@logistics.com',
-      role: 'ADMIN',
-      status: 'active',
-      avatar: 'AU',
-      phone: '+49 123 456 7895',
-      address: 'Berlin, Germany',
-      createdAt: new Date('2024-01-01'),
-      lastLogin: new Date('2025-01-21'),
-      totalDeliveries: 0,
-      department: 'Management'
-    },
-    {
-      id: '7',
-      name: 'Sarah Wilson',
-      email: 'sarah.wilson@example.com',
-      role: 'CUSTOMER',
-      status: 'suspended',
-      avatar: 'SW',
-      phone: '+49 123 456 7896',
-      address: 'Stuttgart, Germany',
-      createdAt: new Date('2024-04-10'),
-      lastLogin: new Date('2025-01-10'),
-      totalDeliveries: 6
-    },
-    {
-      id: '8',
-      name: 'Thomas Brown',
-      email: 'thomas.brown@example.com',
-      role: 'CUSTOMER',
-      status: 'active',
-      avatar: 'TB',
-      phone: '+49 123 456 7897',
-      address: 'Düsseldorf, Germany',
-      createdAt: new Date('2024-05-20'),
-      lastLogin: new Date('2025-01-18'),
-      totalDeliveries: 12
-    }
-  ];
+  users: User[] = [];
+  loading = false;
+  saving = false;
+  errorMessage = '';
 
   filteredUsers: User[] = [];
   selectedUser: User | null = null;
@@ -192,11 +87,57 @@ export class AdminUsersComponent implements OnInit {
   statsCards: StatCard[] = [];
 
   constructor(private sanitizer: DomSanitizer) {
-    this.filteredUsers = [...this.users];
     this.calculateStats();
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.fetchUsers();
+  }
+
+  fetchUsers(): void {
+    this.loading = true;
+    this.errorMessage = '';
+    this.userService.getAllUsers().subscribe({
+      next: (users: ApiUser[]) => {
+        this.users = users.map((user) => this.mapApiUserToView(user));
+        this.filteredUsers = [...this.users];
+        this.calculateStats();
+        this.loading = false;
+      },
+      error: () => {
+        this.users = [];
+        this.filteredUsers = [];
+        this.calculateStats();
+        this.errorMessage = 'Failed to load users. Please try again.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private mapApiUserToView(user: ApiUser): User {
+    return {
+      id: user.userId,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      email: user.email,
+      role: user.role,
+      status: this.mapVerificationStatusToUiStatus(user.verificationStatus),
+      avatar: `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase(),
+      phone: user.phoneNumber || 'N/A',
+      address: user.address || 'N/A',
+      createdAt: new Date(user.createdAt),
+      lastLogin: new Date(user.updatedAt),
+      totalDeliveries: 0,
+      rating: user.role === 'AGENT' ? 0 : undefined,
+      assignedParcels: user.role === 'AGENT' ? 0 : undefined,
+      department: user.role === 'AGENT' ? 'Delivery' : undefined
+    };
+  }
+
+  private mapVerificationStatusToUiStatus(status: VerificationStatus): 'active' | 'inactive' | 'suspended' {
+    if (status === 'VERIFIED') return 'active';
+    if (status === 'PENDING') return 'inactive';
+    return 'suspended';
+  }
 
   calculateStats(): void {
     const totalUsers = this.users.length;
@@ -381,55 +322,36 @@ export class AdminUsersComponent implements OnInit {
   }
 
   updateUserRole(): void {
-    if (this.selectedUser && this.newRole) {
-      const index = this.users.findIndex(u => u.id === this.selectedUser!.id);
-      if (index !== -1) {
-        this.users[index].role = this.newRole as any;
-        this.calculateStats();
-        this.filterUsers();
-      }
-    }
+    this.errorMessage = 'Role update endpoint is not available yet.';
     this.closeRoleModal();
   }
 
   toggleUserStatus(user: User): void {
-    const newStatus = user.status === 'active' ? 'inactive' : 'active';
-    if (confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} ${user.name}?`)) {
-      const index = this.users.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        this.users[index].status = newStatus;
-        this.calculateStats();
-        this.filterUsers();
-      }
+    const nextVerificationStatus: VerificationStatus = user.status === 'active' ? 'REJECTED' : 'VERIFIED';
+    const verb = nextVerificationStatus === 'VERIFIED' ? 'activate' : 'deactivate';
+    if (!confirm(`Are you sure you want to ${verb} ${user.name}?`)) {
+      return;
     }
+
+    this.saving = true;
+    this.userService.verifyUser(user.id, nextVerificationStatus).subscribe({
+      next: () => {
+        this.fetchUsers();
+        this.saving = false;
+      },
+      error: () => {
+        this.errorMessage = 'Failed to update user verification status.';
+        this.saving = false;
+      }
+    });
   }
 
   deleteUser(id: string): void {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      this.users = this.users.filter(u => u.id !== id);
-      this.calculateStats();
-      this.filterUsers();
-      
-      if (this.selectedUser?.id === id) {
-        this.closeDetailsModal();
-      }
-    }
+    this.errorMessage = 'Delete user endpoint is not available yet.';
   }
 
   promoteToAgent(user: User): void {
-    if (user.role === 'CUSTOMER') {
-      if (confirm(`Promote ${user.name} to Delivery Agent?`)) {
-        const index = this.users.findIndex(u => u.id === user.id);
-        if (index !== -1) {
-          this.users[index].role = 'AGENT';
-          this.users[index].department = 'Delivery';
-          this.users[index].rating = 0;
-          this.users[index].assignedParcels = 0;
-          this.calculateStats();
-          this.filterUsers();
-        }
-      }
-    }
+    this.errorMessage = 'Promote flow requires role update endpoint (not available yet).';
   }
 
   // Add User Modal methods
@@ -456,58 +378,34 @@ export class AdminUsersComponent implements OnInit {
   }
 
   addNewUser(): void {
-    // Validation
+    this.errorMessage = '';
     if (!this.newUser.name || !this.newUser.email || !this.newUser.phone) {
-      alert('Please fill in all required fields');
+      this.errorMessage = 'Please fill in all required user fields.';
       return;
     }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.newUser.email)) {
-      alert('Please enter a valid email address');
-      return;
-    }
-
-    // Check if email already exists
-    if (this.users.some(u => u.email === this.newUser.email)) {
-      alert('A user with this email already exists');
-      return;
-    }
-
-    // Create initials for avatar
-    const initials = this.newUser.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-
-    // Create new user
-    const newUser: User = {
-      id: (this.users.length + 1).toString(),
-      name: this.newUser.name,
-      email: this.newUser.email,
-      role: this.newUser.role as 'CUSTOMER' | 'AGENT' | 'ADMIN',
-      status: this.newUser.status as 'active' | 'inactive' | 'suspended',
-      avatar: initials,
-      phone: this.newUser.phone,
-      address: this.newUser.address || 'Not specified',
-      createdAt: new Date(),
-      lastLogin: new Date(),
-      totalDeliveries: 0,
-      ...(this.newUser.role === 'AGENT' && {
-        rating: 0,
-        assignedParcels: 0,
-        department: this.newUser.department || 'Delivery'
-      })
+    const [firstName, ...rest] = this.newUser.name.trim().split(/\s+/);
+    const lastName = rest.join(' ') || 'User';
+    const payload: SignupRequest = {
+      firstName,
+      lastName,
+      email: this.newUser.email.trim(),
+      phoneNumber: this.newUser.phone.trim(),
+      address: this.newUser.address.trim() || 'N/A',
+      password: 'Temp1234!',
+      role: this.newUser.role as 'CUSTOMER' | 'AGENT' | 'ADMIN'
     };
-
-    // Add to users array
-    this.users.push(newUser);
-    
-    // Refresh filtered users and stats
-    this.calculateStats();
-    this.filterUsers();
-    
-    // Close modal and show success
-    this.closeAddUserModal();
-    alert(`User ${newUser.name} has been added successfully!`);
+    this.saving = true;
+    this.http.post(`${environment.apiUrl}/logistics/auth/register`, payload).subscribe({
+      next: () => {
+        this.closeAddUserModal();
+        this.fetchUsers();
+        this.saving = false;
+      },
+      error: () => {
+        this.errorMessage = 'Failed to create user. Check if the email already exists.';
+        this.saving = false;
+      }
+    });
   }
 
   getRoleColor(role: string): string {

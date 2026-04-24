@@ -4,9 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule, Router } from '@angular/router';
 import { SidebarAgentComponent } from '../../../shared/sidebar-agent/sidebar-agent';
+import { TripService } from '../../../core/services/trip.service';
+import { TokenStorageService } from '../../../core/services/token-storage.service';
+import { TripResponse, TripStatus } from '../../../core/models/trip.model';
+import { inject } from '@angular/core';
 
 interface DeliveryTask {
   id: string;
+  tripStatus: TripStatus;
   trackingNumber: string;
   customerName: string;
   customerPhone: string;
@@ -43,89 +48,16 @@ interface StatCard {
 })
 export class MyDeliveriesComponent implements OnInit {
   Math = Math;
+  private readonly tripService = inject(TripService);
+  private readonly storage = inject(TokenStorageService);
   
   // Agent information
   agentName = 'Max Klinger';
   agentAvatar = 'MK';
   
-  // Deliveries data
-  deliveries: DeliveryTask[] = [
-    {
-      id: '1',
-      trackingNumber: 'AD345Jk758',
-      customerName: 'Anna Bauer',
-      customerPhone: '+49 30 987 654',
-      pickupAddress: 'Berlin Central Hub, Mohrenstrasse 37, 10117 Berlin',
-      deliveryAddress: 'Goethestraße 1, 10115 Berlin',
-      status: 'IN_TRANSIT',
-      statusColor: '#2563EB',
-      statusBg: '#EFF6FF',
-      fragilityLevel: 3,
-      weight: 5.5,
-      distance: 12.5,
-      estimatedTime: '25 min',
-      progress: 66,
-      priority: 'medium',
-      scheduledTime: new Date('2025-01-21T14:00:00'),
-      specialInstructions: 'Call customer 10 minutes before arrival'
-    },
-    {
-      id: '2',
-      trackingNumber: 'FR156KL89K',
-      customerName: 'Thomas Brown',
-      customerPhone: '+49 123 456 7897',
-      pickupAddress: 'Hamburg Port Agency, Hafenstraße 15, 20359 Hamburg',
-      deliveryAddress: 'Rheinauhafen 23, 50678 Cologne',
-      status: 'PENDING',
-      statusColor: '#D97706',
-      statusBg: '#FFFBEB',
-      fragilityLevel: 7,
-      weight: 3.2,
-      distance: 8.3,
-      estimatedTime: '18 min',
-      progress: 0,
-      priority: 'high',
-      scheduledTime: new Date('2025-01-21T15:30:00'),
-      specialInstructions: 'Handle with care - fragile items'
-    },
-    {
-      id: '3',
-      trackingNumber: 'LN236NBB9R',
-      customerName: 'Sarah Wilson',
-      customerPhone: '+49 123 456 7896',
-      pickupAddress: 'Frankfurt Airport Logistics, Flughafenstraße 45, 60549 Frankfurt',
-      deliveryAddress: 'Berlin Central Hub, Mohrenstrasse 37, 10117 Berlin',
-      status: 'PENDING',
-      statusColor: '#D97706',
-      statusBg: '#FFFBEB',
-      fragilityLevel: 2,
-      weight: 8.0,
-      distance: 15.2,
-      estimatedTime: '32 min',
-      progress: 0,
-      priority: 'low',
-      scheduledTime: new Date('2025-01-21T16:45:00')
-    },
-    {
-      id: '4',
-      trackingNumber: 'HY789MN12K',
-      customerName: 'Emma Davis',
-      customerPhone: '+49 123 456 7890',
-      pickupAddress: 'Munich Logistics Center, Goethestraße 1, 80336 Munich',
-      deliveryAddress: 'Cologne Rhein Hub, Rheinauhafen 23, 50678 Cologne',
-      status: 'PENDING',
-      statusColor: '#D97706',
-      statusBg: '#FFFBEB',
-      fragilityLevel: 9,
-      weight: 12.5,
-      distance: 45.8,
-      estimatedTime: '55 min',
-      progress: 0,
-      priority: 'high',
-      scheduledTime: new Date('2025-01-22T09:00:00'),
-      specialInstructions: 'Very fragile - double box required'
-    }
-  ];
+  deliveries: DeliveryTask[] = [];
+  loading = false;
+  errorMessage = '';
 
   filteredDeliveries: DeliveryTask[] = [];
   selectedDelivery: DeliveryTask | null = null;
@@ -136,17 +68,95 @@ export class MyDeliveriesComponent implements OnInit {
   filterPriority: string = 'ALL';
   sortBy: string = 'scheduledTime';
   sortOrder: 'asc' | 'desc' = 'asc';
-  activeTab: string = 'all';
+  activeTab: 'ALL' | TripStatus = 'ALL';
   
   // Stats
   statsCards: StatCard[] = [];
   
   constructor(private sanitizer: DomSanitizer, private router: Router) {
-    this.filteredDeliveries = [...this.deliveries];
     this.calculateStats();
   }
   
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    const user = this.storage.getUser();
+    if (user) {
+      this.agentName = `${user.firstName} ${user.lastName}`.trim();
+      this.agentAvatar = `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'AG';
+    }
+    this.fetchDeliveries();
+  }
+
+  fetchDeliveries(): void {
+    const user = this.storage.getUser();
+    if (!user) {
+      this.errorMessage = 'No authenticated agent found.';
+      return;
+    }
+    this.loading = true;
+    this.errorMessage = '';
+    this.tripService.getAgentTrips(user.userId).subscribe({
+      next: (trips: TripResponse[]) => {
+        this.deliveries = trips.map((trip) => this.mapTripToDelivery(trip));
+        this.filteredDeliveries = [...this.deliveries];
+        this.calculateStats();
+        if (!this.selectedDelivery && this.filteredDeliveries.length > 0) {
+          this.selectedDelivery = this.filteredDeliveries[0];
+        }
+        this.loading = false;
+      },
+      error: () => {
+        this.deliveries = [];
+        this.filteredDeliveries = [];
+        this.calculateStats();
+        this.errorMessage = 'Failed to load deliveries.';
+        this.loading = false;
+      }
+    });
+  }
+
+  private mapTripToDelivery(trip: TripResponse): DeliveryTask {
+    const mappedStatus = this.mapTripStatus(trip.status);
+    const statusColors = this.getStatusColors(mappedStatus);
+    const reachedSegments = trip.segments.filter((s) => s.status === 'REACHED').length;
+    const progress = trip.status === 'COMPLETED' ? 100 : Math.round((reachedSegments / Math.max(1, trip.segmentCount)) * 100);
+    return {
+      id: trip.id,
+      tripStatus: trip.status,
+      trackingNumber: trip.id.substring(0, 8).toUpperCase(),
+      customerName: 'Agency Transfer',
+      customerPhone: 'N/A',
+      pickupAddress: trip.sourceAgencyName || 'Source agency',
+      deliveryAddress: trip.destAgencyName || 'Destination agency',
+      status: mappedStatus,
+      statusColor: statusColors.color,
+      statusBg: statusColors.bg,
+      fragilityLevel: 1,
+      weight: 0,
+      distance: trip.totalDistanceKm,
+      estimatedTime: trip.status === 'COMPLETED' ? 'Completed' : 'In progress',
+      progress,
+      priority: 'medium',
+      scheduledTime: new Date(trip.createdAt)
+    };
+  }
+
+  private mapTripStatus(status: TripStatus): 'PENDING' | 'IN_TRANSIT' | 'DELIVERED' {
+    if (status === 'ACTIVE') return 'IN_TRANSIT';
+    if (status === 'COMPLETED') return 'DELIVERED';
+    return 'PENDING';
+  }
+
+  private getStatusColors(status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED'): { color: string; bg: string } {
+    if (status === 'IN_TRANSIT') return { color: '#2563EB', bg: '#EFF6FF' };
+    if (status === 'DELIVERED') return { color: '#10B981', bg: '#D1FAE5' };
+    return { color: '#D97706', bg: '#FFFBEB' };
+  }
+
+  getTripStatusLabel(delivery: DeliveryTask): string {
+    if (delivery.tripStatus === 'ACTIVE') return 'ACTIVE';
+    if (delivery.tripStatus === 'COMPLETED') return 'COMPLETED';
+    return 'COLLECTING';
+  }
   
   calculateStats(): void {
     const totalDeliveries = this.deliveries.length;
@@ -208,7 +218,7 @@ export class MyDeliveriesComponent implements OnInit {
       
       const matchesStatus = this.filterStatus === 'ALL' || delivery.status === this.filterStatus;
       const matchesPriority = this.filterPriority === 'ALL' || delivery.priority === this.filterPriority;
-      const matchesTab = this.activeTab === 'all' || delivery.status === this.activeTab.toUpperCase();
+      const matchesTab = this.activeTab === 'ALL' || delivery.tripStatus === this.activeTab;
       
       return matchesSearch && matchesStatus && matchesPriority && matchesTab;
     });
@@ -285,11 +295,11 @@ export class MyDeliveriesComponent implements OnInit {
     this.searchTerm = '';
     this.filterStatus = 'ALL';
     this.filterPriority = 'ALL';
-    this.activeTab = 'all';
+    this.activeTab = 'ALL';
     this.filterDeliveries();
   }
   
-  setActiveTab(tab: string): void {
+  setActiveTab(tab: 'ALL' | TripStatus): void {
     this.activeTab = tab;
     this.filterDeliveries();
   }
@@ -299,7 +309,25 @@ export class MyDeliveriesComponent implements OnInit {
   }
   
   startDelivery(delivery: DeliveryTask): void {
+    if (delivery.status === 'PENDING') {
+      this.tripService.startTrip(delivery.id).subscribe({
+        next: () => {
+          this.fetchDeliveries();
+          this.router.navigate(['/agent/live-tracking']);
+        },
+        error: () => {
+          this.errorMessage = 'Failed to start delivery.';
+        }
+      });
+      return;
+    }
     this.router.navigate(['/agent/live-tracking']);
+  }
+
+  getDeliveryActionLabel(delivery: DeliveryTask): string {
+    if (delivery.tripStatus === 'ACTIVE') return 'Continue Delivery';
+    if (delivery.tripStatus === 'COMPLETED') return 'View Trip';
+    return 'Start Delivery';
   }
   
   viewInstructions(delivery: DeliveryTask): void {

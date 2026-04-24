@@ -39,6 +39,14 @@ export class LandingComponent implements AfterViewInit, OnDestroy {
 
   constructor(private router: Router) {}
 
+  theme = {
+    isDark: signal(true),
+    toggle: () => {
+      this.theme.isDark.update(v => !v);
+      document.documentElement.setAttribute('data-theme', this.theme.isDark() ? 'dark' : 'light');
+    }
+  };
+
   ngAfterViewInit(): void {
     window.addEventListener('scroll', this.onScroll, { passive: true });
     document.addEventListener('mousemove', this.onMouse);
