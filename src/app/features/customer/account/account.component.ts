@@ -19,6 +19,7 @@ export class AccountComponent implements OnInit {
   private readonly accountService = inject(AccountService);
 
   protected readonly loading = signal(true);
+  protected readonly saving = signal(false);
   protected readonly editing = signal(false);
   protected readonly saveMessage = signal('');
 
@@ -54,6 +55,9 @@ export class AccountComponent implements OnInit {
           state: data.state,
           address: data.address
         });
+        this.loading.set(false);
+      },
+      error: (err) => {
         this.loading.set(false);
       }
     });
@@ -97,6 +101,9 @@ export class AccountComponent implements OnInit {
       avatarInitials: current.avatarInitials
     };
 
+    this.saving.set(true);
+    this.saveMessage.set('');
+
     this.accountService.updateAccount(payload).subscribe({
       next: (updated) => {
         this.account.set(updated);
@@ -109,8 +116,13 @@ export class AccountComponent implements OnInit {
           state: updated.state,
           address: updated.address
         });
+        this.saving.set(false);
         this.editing.set(false);
         this.saveMessage.set('Account updated successfully.');
+      },
+      error: (err) => {
+        this.saving.set(false);
+        this.saveMessage.set('Failed to update account. Please try again.');
       }
     });
   }

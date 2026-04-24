@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { ParcelService } from '../../../shared/services/parcel.service';
 import { BottomNavComponent } from '../../../shared/bottom-nav/bottom-nav.component';
 import { ParcelSummary, ParcelStatus } from '../../../core/models/parcel.model';
@@ -15,6 +15,7 @@ import { StatusBadgeComponent } from '../../../shared/status-badge/status-badge.
   styleUrls: ['./packages.component.scss']
 })
 export class PackagesComponent implements OnInit {
+  private readonly router = inject(Router); 
   protected readonly loading = signal(true);
   protected readonly activeTab = signal<'SCHEDULED' | 'IN_TRANSIT' | 'DELIVERED'>('IN_TRANSIT');
   protected readonly parcels = signal<ParcelSummary[]>([]);

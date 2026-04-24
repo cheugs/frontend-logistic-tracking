@@ -62,7 +62,6 @@ export class DeliveryDetailsComponent implements OnInit {
     receiverAddress: [''],
     weight: [1, [Validators.required, Validators.min(0.1)]],
     fragility: [3, [Validators.required, Validators.min(1), Validators.max(10)]],
-    status: ['PENDING_PAYMENT' as const, Validators.required],
     landmark: ['']
   });
 
@@ -117,9 +116,13 @@ export class DeliveryDetailsComponent implements OnInit {
 
     this.parcelService.simulatePayment(method, amount).subscribe({
       next: () => {
-        if (method !== 'WALLET') {
+        if (method === 'WALLET') {
           this.walletService.deductBalance(amount).subscribe({
-            next: () => this.finishParcel()
+            next: () => this.finishParcel(),
+            error: (err) => {
+              this.loadingPayment.set(false);
+              this.statusMessage.set('Insufficient balance or deduction failed. Please try again.');
+            }
           });
         } else {
           this.finishParcel();
@@ -133,12 +136,12 @@ export class DeliveryDetailsComponent implements OnInit {
   }
 
   private finishParcel(): void {
-    const details = this.detailsForm.getRawValue() as DeliveryDetailsFormValue;
+    const details ={ ...this.detailsForm.getRawValue() as DeliveryDetailsFormValue, status: 'PENDING_PAYMENT' };
     this.parcelService.createParcel(details, this.draft, this.computedAmount()).subscribe({
       next: () => {
         this.loadingPayment.set(false);
         this.statusMessage.set('Payment successful and parcel created.');
-        setTimeout(() => this.router.navigate(['/customer/dashboard']), 1200);
+        this.router.navigate(['/customer/dashboard']);
       }
     });
   }

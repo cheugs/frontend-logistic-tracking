@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { Observable, of, delay } from 'rxjs';
+import { Observable, of, delay, throwError } from 'rxjs';
 import { WalletSummary, WalletTopUpRequest } from '../../core/models/wallet.model';
 
 @Injectable({
@@ -32,6 +32,9 @@ export class WalletService {
 
   deductBalance(amount: number): Observable<WalletSummary> {
     const current = this.walletState();
+    if (amount > current.balance) {
+    return throwError(() => new Error('Insufficient balance'));
+    }
     const next = { ...current, balance: Math.max(0, current.balance - amount) };
     this.walletState.set(next);
     return of(next).pipe(delay(350));

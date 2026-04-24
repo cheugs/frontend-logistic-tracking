@@ -34,10 +34,11 @@ export class DashboardComponent implements OnInit {
   });
 
   protected readonly trackForm = this.fb.nonNullable.group({
-    parcelId: ['', [Validators.required, Validators.minLength(6)]]
+    parcelId: ['', [Validators.required, Validators.minLength(/^\S.{4,}$/)]]
   });
 
   protected readonly activeParcels = computed<ParcelSummary[]>(() => this.dashboard()?.activeParcels ?? []);
+
   protected readonly walletDisplay = computed(() => {
     const wallet = this.dashboard()?.wallet;
     if (!wallet) return '';
@@ -92,11 +93,11 @@ export class DashboardComponent implements OnInit {
     }
 
     const parcelId = this.trackForm.getRawValue().parcelId.trim();
-  if (parcelId) {
-    this.router.navigate(['/customer/track-parcel', parcelId]);
-  } else {
-    this.router.navigate(['/customer/track-parcel']);
-  }
+    if (parcelId) {
+      this.router.navigate(['/customer/track-parcel', parcelId]);
+    } else {
+      this.router.navigate(['/customer/track-parcel']);
+    }
   }
 
   protected goToCreateParcel(): void {

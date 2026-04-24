@@ -41,7 +41,7 @@ export interface DeliveryDetailsFormValue {
   receiverAddress: string;
   weight: number;
   fragility: number;
-  status: ParcelStatus;
+  status?: ParcelStatus;
   landmark?: string;
 }
 
