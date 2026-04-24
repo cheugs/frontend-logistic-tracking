@@ -25,7 +25,7 @@ export interface CreateParcelDraft {
   packageSize: PackageSize;
   serviceName: string;
   quantityLabel: string;
-  amount: number;
+  amount?: number;
   estimatedDuration: string;
 }
 

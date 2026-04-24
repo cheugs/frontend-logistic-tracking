@@ -9,23 +9,47 @@
       <!-- Header -->
       <div class="tracking-header">
         <div>
-          <h1 class="tracking-title">Live Tracking</h1>
+          <h1 class="tracking-title">Live Trip Tracking</h1>
           <p class="tracking-subtitle">Tracking #: {{ trackingNumber }}</p>
         </div>
         <div class="header-actions">
+          <button
+            class="action-btn secondary"
+            [disabled]="!canStartTrip()"
+            (click)="startTripFromTracking()">
+            {{ activeAction === 'start' ? 'Starting...' : 'Start Trip' }}
+          </button>
+          <button
+            class="action-btn secondary"
+            *ngIf="!isDelivered"
+            [disabled]="!canReachNextSegment()"
+            (click)="reachNextSegment()">
+            {{ activeAction === 'reach' ? 'Updating...' : 'Reach Next Segment' }}
+          </button>
           <button class="action-btn secondary" (click)="openSpeedModal()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M13 2L3 14h8l-2 8 10-12h-8l2-8z"/>
             </svg>
             Adjust Speed
           </button>
-          <button class="action-btn danger" *ngIf="!isDelivered" (click)="markAsDelivered()">
+          <button
+            class="action-btn danger"
+            *ngIf="!isDelivered"
+            [disabled]="!canMarkDelivered()"
+            (click)="markAsDelivered()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
-            Mark Delivered
+            {{ activeAction === 'complete' ? 'Updating...' : 'Complete Trip' }}
           </button>
         </div>
+      </div>
+      <div *ngIf="loading" class="no-results">
+        <h3>Loading live tracking...</h3>
+      </div>
+      <div *ngIf="!loading && errorMessage" class="no-results">
+        <h3>{{ errorMessage }}</h3>
+        <button class="action-btn secondary" (click)="fetchActiveTrip()">Retry</button>
       </div>
 
       <!-- Map Container -->
@@ -53,14 +77,14 @@
     </button>
   </div>
   
-  <!-- Delivery Status Overlay -->
+  <!-- Trip Status Overlay -->
   <div class="status-overlay" *ngIf="isDelivered">
     <div class="status-overlay-content">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
       </svg>
-      <h3>Delivery Completed!</h3>
-      <p>Package successfully delivered to customer</p>
+      <h3>Trip Completed!</h3>
+      <p>All assigned parcels were delivered successfully</p>
     </div>
   </div>
 </div>
@@ -68,7 +92,7 @@
       <!-- Progress Section -->
       <div class="progress-section">
         <div class="progress-header">
-          <span class="progress-label">Delivery Progress</span>
+          <span class="progress-label">Trip Progress</span>
           <span class="progress-percentage">{{ currentProgress | number:'1.0-0' }}%</span>
         </div>
         <div class="progress-bar-container large">
@@ -90,26 +114,6 @@
         </div>
       </div>
 
-      <!-- Control Buttons -->
-      <div class="control-buttons">
-        <button class="control-btn play" *ngIf="!isTracking && !isDelivered" (click)="startSimulation()">
-          <span [innerHTML]="getControlIcon('play')"></span>
-          Start Delivery
-        </button>
-        <button class="control-btn pause" *ngIf="isTracking && !isPaused && !isDelivered" (click)="pauseSimulation()">
-          <span [innerHTML]="getControlIcon('pause')"></span>
-          Pause
-        </button>
-        <button class="control-btn play" *ngIf="isTracking && isPaused && !isDelivered" (click)="resumeSimulation()">
-          <span [innerHTML]="getControlIcon('play')"></span>
-          Resume
-        </button>
-        <button class="control-btn reset" *ngIf="isTracking && !isDelivered" (click)="resetSimulation()">
-          <span [innerHTML]="getControlIcon('reset')"></span>
-          Reset
-        </button>
-      </div>
-
       <!-- Route Segments -->
       <div class="segments-section">
         <h3 class="section-title">Route Segments</h3>
@@ -120,7 +124,10 @@
 </div>
             <div class="segment-info">
               <div class="segment-type">{{ segment.type | uppercase }}</div>
-              <div class="segment-distance">{{ segment.distance }} km • {{ formatDuration(segment.duration) }}</div>
+              <div class="segment-distance">
+                {{ segment.distance }} km • {{ formatDuration(segment.duration) }} •
+                {{ segment.reached ? 'Reached' : 'Pending' }}
+              </div>
             </div>
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2">
               <path d="M9 18l6-6-6-6"/>
@@ -129,9 +136,9 @@
         </div>
       </div>
 
-      <!-- Delivery Updates -->
+      <!-- Trip Updates -->
       <div class="updates-section">
-        <h3 class="section-title">Delivery Updates</h3>
+        <h3 class="section-title">Trip Updates</h3>
         <div class="updates-list">
           <div *ngFor="let update of deliveryUpdates" class="update-item">
             <div class="update-time">{{ formatTime(update.timestamp) }}</div>
@@ -155,11 +162,11 @@
             <span class="info-value">{{ trackingNumber }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Customer</span>
+            <span class="info-label">Transfer Type</span>
             <span class="info-value">{{ customerName }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Phone</span>
+            <span class="info-label">Contact</span>
             <span class="info-value">{{ customerPhone }}</span>
           </div>
           <div class="info-row">
@@ -167,14 +174,14 @@
             <span class="info-value">{{ pickupAddress }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Delivery Address</span>
+            <span class="info-label">Destination Agency</span>
             <span class="info-value">{{ deliveryAddress }}</span>
           </div>
         </div>
       </div>
 
       <div class="delivery-info">
-        <h3 class="info-title">Delivery Details</h3>
+        <h3 class="info-title">Trip Details</h3>
         <div class="info-list">
           <div class="info-row">
             <span class="info-label">Fragility Level</span>
@@ -200,19 +207,17 @@
       </div>
 
       <div class="simulation-info">
-        <h3 class="info-title">GPS Simulation</h3>
+        <h3 class="info-title">Trip Action Rules</h3>
         <div class="simulation-controls">
-          <div class="input-group">
-            <label>Latitude</label>
-            <input type="number" class="form-control" [(ngModel)]="manualLatitude" step="0.0001">
+          <div class="info-note">
+            <strong>Start Trip</strong> is available only when trip status is <strong>COLLECTING</strong>.
           </div>
-          <div class="input-group">
-            <label>Longitude</label>
-            <input type="number" class="form-control" [(ngModel)]="manualLongitude" step="0.0001">
+          <div class="info-note">
+            <strong>Reach Next Segment</strong> and <strong>Complete Trip</strong> work only while trip is <strong>ACTIVE</strong>.
           </div>
-          <button class="update-btn" (click)="updateManualPosition()">
-            Update Position
-          </button>
+          <div class="info-note">
+            Delivery completes automatically on backend when the final segment is reached.
+          </div>
         </div>
       </div>
     </div>

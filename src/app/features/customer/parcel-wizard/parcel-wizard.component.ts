@@ -5,6 +5,7 @@ import { AgencySelectorComponent } from './steps/agency-selector.component';
 import { ParcelSpecsComponent } from './steps/parcel-specs.component';
 import { QuoteSummaryComponent } from './steps/quote-summary.component';
 import { ReviewConfirmComponent } from './steps/review-confirm.component';
+import { PaymentGatewayComponent } from './steps/payment-gateway.component';
 
 @Component({
   selector: 'app-parcel-wizard',
@@ -14,14 +15,15 @@ import { ReviewConfirmComponent } from './steps/review-confirm.component';
     AgencySelectorComponent, 
     ParcelSpecsComponent, 
     QuoteSummaryComponent, 
-    ReviewConfirmComponent
+    ReviewConfirmComponent,
+    PaymentGatewayComponent
   ],
   template: `
     <div class="wizard-container">
       <!-- Progress Bar -->
       <div class="progress-stepper">
         <div 
-          *ngFor="let s of [1, 2, 3, 4]" 
+          *ngFor="let s of [1, 2, 3, 4, 5]" 
           class="step-indicator" 
           [class.active]="currentStep() >= s"
           [class.completed]="currentStep() > s"
@@ -30,7 +32,7 @@ import { ReviewConfirmComponent } from './steps/review-confirm.component';
           <span class="step-label">{{ getStepLabel(s) }}</span>
         </div>
         <div class="progress-line">
-          <div class="progress-fill" [style.width.%]="(currentStep() - 1) * 33.3"></div>
+          <div class="progress-fill" [style.width.%]="(currentStep() - 1) * 25"></div>
         </div>
       </div>
 
@@ -40,12 +42,13 @@ import { ReviewConfirmComponent } from './steps/review-confirm.component';
         <app-parcel-specs *ngIf="currentStep() === 2"></app-parcel-specs>
         <app-quote-summary *ngIf="currentStep() === 3"></app-quote-summary>
         <app-review-confirm *ngIf="currentStep() === 4"></app-review-confirm>
+        <app-payment-gateway *ngIf="currentStep() === 5"></app-payment-gateway>
       </div>
 
       <!-- Navigation -->
       <div class="wizard-actions">
         <button 
-          *ngIf="currentStep() > 1" 
+          *ngIf="currentStep() > 1 && currentStep() < 5" 
           class="btn-secondary" 
           (click)="wizardService.prevStep()"
         >
@@ -57,7 +60,7 @@ import { ReviewConfirmComponent } from './steps/review-confirm.component';
           [disabled]="!canProceed()"
           (click)="handleNext()"
         >
-          {{ currentStep() === 3 ? 'Finalize' : 'Continue' }}
+          {{ currentStep() === 3 ? 'Review Shipment' : 'Continue' }}
         </button>
       </div>
     </div>
@@ -194,7 +197,7 @@ export class ParcelWizardComponent {
   currentStep = this.wizardService.currentStep;
 
   getStepLabel(step: number): string {
-    const labels = ['Route', 'Details', 'Quote', 'Confirm'];
+    const labels = ['Route', 'Details', 'Quote', 'Review', 'Payment'];
     return labels[step - 1];
   }
 

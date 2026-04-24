@@ -10,11 +10,11 @@
         <div class="agent-avatar">{{ agentAvatar }}</div>
         <div class="agent-info">
           <h3 class="agent-name">{{ agentName }}</h3>
-          <p class="agent-title">Delivery Agent</p>
+          <p class="agent-title">Trip Agent</p>
         </div>
       </div>
 
-      <h2 class="panel-title">Delivery History</h2>
+      <h2 class="panel-title">Completed Trips</h2>
 
       <!-- Search and Filters -->
       <div class="filters-container">
@@ -25,7 +25,7 @@
           </svg>
           <input 
             type="text" 
-            placeholder="Search by tracking # or customer..." 
+            placeholder="Search by tracking # or agency..." 
             class="search-input"
             [value]="searchTerm"
             (input)="onSearch($event)"
@@ -81,6 +81,13 @@
 
       <!-- Deliveries List -->
       <div class="deliveries-list">
+        <div *ngIf="loading" class="no-results">
+          <h3>Loading completed trips...</h3>
+        </div>
+        <div *ngIf="!loading && errorMessage" class="no-results">
+          <h3>{{ errorMessage }}</h3>
+          <button class="clear-filters-btn" (click)="fetchCompletedDeliveries()">Retry</button>
+        </div>
         <div 
           *ngFor="let delivery of filteredDeliveries" 
           class="delivery-card" 
@@ -143,11 +150,11 @@
           </div>
         </div>
 
-        <div *ngIf="filteredDeliveries.length === 0" class="no-results">
+        <div *ngIf="!loading && !errorMessage && filteredDeliveries.length === 0" class="no-results">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
             <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
           </svg>
-          <h3>No deliveries found</h3>
+          <h3>No completed trips found</h3>
           <p>Try adjusting your filters</p>
         </div>
       </div>
@@ -157,7 +164,7 @@
     <div class="detail-panel" *ngIf="selectedDelivery">
       <div class="detail-header">
         <div class="detail-title">
-          <h3>Delivery Details</h3>
+          <h3>Trip Details</h3>
           <p>Tracking #: {{ selectedDelivery.trackingNumber }}</p>
         </div>
         <button class="close-details" (click)="closeDetails()">
@@ -177,13 +184,13 @@
             </svg>
           </div>
           <div class="summary-info">
-            <div class="summary-status">Delivered</div>
+            <div class="summary-status">COMPLETED</div>
             <div class="summary-date">{{ selectedDelivery.completedAt | date:'full' }}</div>
           </div>
         </div>
         <div class="summary-stats">
           <div class="stat">
-            <div class="stat-label">Delivery Time</div>
+            <div class="stat-label">Trip Time</div>
             <div class="stat-value">{{ formatDuration(selectedDelivery.deliveryTime) }}</div>
           </div>
           <div class="stat">
@@ -233,7 +240,7 @@
               </svg>
             </div>
             <div class="point-details">
-              <div class="point-label">Delivery Address</div>
+              <div class="point-label">Destination Agency</div>
               <div class="point-address">{{ selectedDelivery.deliveryAddress }}</div>
             </div>
           </div>
@@ -257,7 +264,7 @@
             </span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">Customer:</span>
+            <span class="detail-label">Transfer Type:</span>
             <span class="detail-value">{{ selectedDelivery.customerName }}</span>
           </div>
           <div class="detail-row">
@@ -267,9 +274,9 @@
         </div>
       </div>
 
-      <!-- Customer Feedback -->
+      <!-- Trip Feedback -->
       <div class="feedback-section" *ngIf="selectedDelivery.customerFeedback">
-        <h3 class="section-title">Customer Feedback</h3>
+        <h3 class="section-title">Trip Feedback</h3>
         <div class="feedback-content">
           <div class="feedback-rating">
             <span *ngFor="let star of [1,2,3,4,5]">
@@ -287,8 +294,8 @@
         <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
           <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
         </svg>
-        <h3>Select a delivery</h3>
-        <p>Choose a delivery from the list to view details</p>
+        <h3>Select a trip</h3>
+        <p>Choose a trip from the list to view details</p>
       </div>
     </div>
   </div>
@@ -298,7 +305,7 @@
 <div class="modal-overlay" *ngIf="showFeedbackModal" (click)="closeFeedbackModal()">
   <div class="modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h2>Customer Feedback</h2>
+      <h2>Trip Feedback</h2>
       <button class="modal-close" (click)="closeFeedbackModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18" />

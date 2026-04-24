@@ -111,7 +111,18 @@
 
       <!-- Parcels Table -->
       <div class="parcels-table-container">
-        <table class="parcels-table">
+        <div *ngIf="loading" class="no-results">
+          <div class="no-results-content">
+            <h3>Loading parcels...</h3>
+          </div>
+        </div>
+        <div *ngIf="!loading && errorMessage" class="no-results">
+          <div class="no-results-content">
+            <h3>{{ errorMessage }}</h3>
+            <button class="clear-filters-btn" (click)="fetchParcels()">Retry</button>
+          </div>
+        </div>
+        <table class="parcels-table" *ngIf="!loading && !errorMessage">
           <thead>
             <tr>
               <th>Tracking #</th>
@@ -172,7 +183,7 @@
                 </button>
               </td>
             </tr>
-            <tr *ngIf="filteredParcels.length === 0">
+            <tr *ngIf="!loading && !errorMessage && filteredParcels.length === 0">
               <td colspan="10" class="no-results">
                 <div class="no-results-content">
                   <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
@@ -189,7 +200,7 @@
       </div>
 
       <!-- Progress bars summary -->
-      <div class="progress-summary">
+      <div class="progress-summary" *ngIf="parcels.length > 0">
         <div class="summary-card">
           <div class="summary-title">Delivery Progress</div>
           <div class="progress-stats">
@@ -330,8 +341,8 @@
       <div class="form-group">
         <label>Current Status</label>
         <select class="form-control" [(ngModel)]="newStatus">
-          <option value="CREATED">Created</option>
-          <option value="PAID">Paid</option>
+          <option value="PENDING_PAYMENT">Pending Payment</option>
+          <option value="WAITING_FOR_AGENT">Waiting For Agent</option>
           <option value="IN_TRANSIT">In Transit</option>
           <option value="DELIVERED">Delivered</option>
           <option value="CANCELLED">Cancelled</option>
@@ -340,14 +351,14 @@
       
       <div class="status-info">
         <div class="status-note">
-          <strong>Note:</strong> Changing status will affect tracking progress and notifications.
+          <strong>Note:</strong> Backend currently supports only manual cancellation from this screen.
         </div>
       </div>
     </div>
     
     <div class="modal-footer">
       <button class="btn-cancel" (click)="closeStatusModal()">Cancel</button>
-      <button class="btn-save" (click)="updateParcelStatus()">Update Status</button>
+      <button class="btn-save" [disabled]="newStatus !== 'CANCELLED' && newStatus !== selectedParcel.status" (click)="updateParcelStatus()">Update Status</button>
     </div>
   </div>
 </div>

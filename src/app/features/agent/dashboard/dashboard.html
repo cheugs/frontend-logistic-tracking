@@ -13,12 +13,12 @@
           <div class="agent-rating">
             <span [innerHTML]="getStarIcon()"></span>
             <span>{{ agentRating }}</span>
-            <span class="agent-deliveries">({{ totalDeliveries }} deliveries)</span>
+            <span class="agent-deliveries">({{ totalTrips }} trips)</span>
           </div>
         </div>
       </div>
 
-      <h2 class="panel-title">Today's Deliveries</h2>
+      <h2 class="panel-title">Trip Control Center</h2>
 
       <!-- Search and Filter -->
       <div class="search-container">
@@ -29,7 +29,7 @@
           </svg>
           <input 
             type="text" 
-            placeholder="Search by tracking # or customer..." 
+            placeholder="Search by tracking # or agency..." 
             class="search-input"
             [value]="searchTerm"
             (input)="onSearch($event)"
@@ -65,22 +65,30 @@
         </div>
       </div>
 
-      <!-- Delivery Cards -->
+      <!-- Trip Cards -->
       <div class="deliveries-list">
-        <div 
-          *ngFor="let task of getFilteredDeliveries()" 
-          class="delivery-card" 
-          [class.delivery-card-active]="selectedTask?.id === task.id"
-          (click)="selectTask(task)"
-        >
+        <div *ngIf="loading" class="no-results">
+          <h3>Loading trips...</h3>
+        </div>
+        <div *ngIf="!loading && errorMessage" class="no-results">
+          <h3>{{ errorMessage }}</h3>
+          <button class="clear-filters-btn" (click)="fetchTrips()">Retry</button>
+        </div>
+        <div *ngFor="let group of getTripGroups()">
+          <h4 class="section-title">{{ group.title }} Trips ({{ group.items.length }})</h4>
+          <div 
+            *ngFor="let task of group.items" 
+            class="delivery-card" 
+            [class.delivery-card-active]="selectedTask?.id === task.id"
+            (click)="selectTask(task)"
+          >
           <div class="delivery-header">
             <div class="delivery-info">
               <span class="tracking-number">{{ task.trackingNumber }}</span>
-              <span class="priority-badge" [innerHTML]="getPriorityIcon(task.priority)"></span>
             </div>
             <div class="delivery-status">
               <span class="status-badge" [style.background]="task.statusBg" [style.color]="task.statusColor">
-                {{ task.status }}
+                {{ getTripStatusLabel(task) }}
               </span>
             </div>
           </div>
@@ -98,7 +106,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
-              <span class="address-label">Delivery:</span>
+              <span class="address-label">Destination:</span>
               <span class="address-text">{{ task.deliveryAddress }}</span>
             </div>
           </div>
@@ -118,9 +126,7 @@
               <span>{{ task.estimatedTime }}</span>
             </div>
             <div class="detail-item">
-              <span class="fragility-badge" [class]="getFragilityClass(task.fragilityLevel)">
-                {{ getFragilityText(task.fragilityLevel) }}
-              </span>
+              <span>{{ task.parcelsCount }} parcels</span>
             </div>
           </div>
 
@@ -129,24 +135,22 @@
           </div>
 
           <div class="delivery-footer">
-            <span class="customer-name">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-              </svg>
-              {{ task.customerName }}
-            </span>
-            <button class="start-btn" *ngIf="task.status !== 'DELIVERED'" (click)="$event.stopPropagation(); startDelivery(task)">
-              {{ task.status === 'IN_TRANSIT' ? 'Continue' : 'Start Delivery' }}
-            </button>
+            <span class="customer-name">{{ task.reachedSegments }}/{{ task.segmentCount }} segments reached</span>
+            <div>
+              <button class="start-btn" *ngIf="canAssignParcels(task)" (click)="$event.stopPropagation(); openAssignParcels(task)">Assign Parcels</button>
+              <button class="start-btn" *ngIf="canStartTrip(task)" (click)="$event.stopPropagation(); startDelivery(task)">Start Trip</button>
+              <button class="start-btn" *ngIf="task.tripStatus === 'ACTIVE'" (click)="$event.stopPropagation(); openTracking(task)">Open Tracking</button>
+              <button class="start-btn" *ngIf="task.tripStatus === 'COMPLETED'" (click)="$event.stopPropagation(); openTripSummary(task)">View Summary</button>
+            </div>
           </div>
         </div>
+        </div>
 
-        <div *ngIf="getFilteredDeliveries().length === 0" class="no-results">
+        <div *ngIf="!loading && !errorMessage && getFilteredDeliveries().length === 0" class="no-results">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
             <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
           </svg>
-          <h3>No deliveries found</h3>
+          <h3>No trips found</h3>
           <p>Try adjusting your filters</p>
         </div>
       </div>
@@ -157,11 +161,11 @@
       <!-- Header -->
       <div class="detail-header">
         <div class="detail-title">
-          <h3>Delivery Details</h3>
+          <h3>Trip Details</h3>
           <p *ngIf="selectedTask">Tracking #: {{ selectedTask.trackingNumber }}</p>
-          <p *ngIf="!selectedTask">Select a delivery to view details</p>
+          <p *ngIf="!selectedTask">Select a trip to view details</p>
         </div>
-        <button class="refresh-btn" (click)="selectTask(todayDeliveries[0])">
+        <button class="refresh-btn" (click)="fetchTrips()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
             <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
           </svg>
@@ -193,62 +197,73 @@
   </div>
 </div>
 
-      <!-- Delivery Stats -->
+      <!-- Trip Stats -->
       <div class="stats-bar" *ngIf="selectedTask">
         <div class="stat-item">
           <div class="stat-label">Distance</div>
           <div class="stat-value">{{ selectedTask.distance }} km</div>
         </div>
         <div class="stat-item">
-          <div class="stat-label">Est. Time</div>
+          <div class="stat-label">Parcels</div>
+          <div class="stat-value">{{ selectedTask.parcelsCount }}</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Segments</div>
+          <div class="stat-value">{{ selectedTask.reachedSegments }}/{{ selectedTask.segmentCount }}</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Status</div>
+          <div class="stat-value">{{ getTripStatusLabel(selectedTask) }}</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Estimate</div>
           <div class="stat-value">{{ selectedTask.estimatedTime }}</div>
         </div>
-        <div class="stat-item">
-          <div class="stat-label">Weight</div>
-          <div class="stat-value">{{ selectedTask.weight }} kg</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">Fragility</div>
-          <div class="stat-value" [class]="getFragilityClass(selectedTask.fragilityLevel)">
-            {{ getFragilityText(selectedTask.fragilityLevel) }}
-          </div>
-        </div>
       </div>
 
-      <!-- Customer Information -->
+      <!-- Trip Information -->
       <div class="customer-info" *ngIf="selectedTask">
-        <h3 class="section-title">Customer Information</h3>
+        <h3 class="section-title">Trip Information</h3>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Name:</span>
-            <span class="info-value">{{ selectedTask.customerName }}</span>
+            <span class="info-label">Source:</span>
+            <span class="info-value">{{ selectedTask.pickupAddress }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Phone:</span>
-            <span class="info-value">{{ selectedTask.customerPhone }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Address:</span>
+            <span class="info-label">Destination:</span>
             <span class="info-value">{{ selectedTask.deliveryAddress }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value">{{ getTripStatusLabel(selectedTask) }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Delivery Actions -->
-      <div class="delivery-actions" *ngIf="selectedTask && selectedTask.status !== 'DELIVERED'">
-        <button class="action-btn primary" (click)="startDelivery(selectedTask)">
+      <!-- Trip Actions -->
+      <div class="delivery-actions" *ngIf="selectedTask">
+        <button class="action-btn primary" *ngIf="canAssignParcels(selectedTask)" (click)="openAssignParcels(selectedTask)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          </svg>
+          Assign Parcels
+        </button>
+        <button class="action-btn primary" *ngIf="canStartTrip(selectedTask)" (click)="startDelivery(selectedTask)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          {{ selectedTask.status === 'IN_TRANSIT' ? 'Continue Delivery' : 'Start Delivery' }}
+          Start Trip
         </button>
-        <button class="action-btn secondary">
+        <button class="action-btn primary" *ngIf="selectedTask.tripStatus === 'ACTIVE'" (click)="openTracking(selectedTask)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
-          View Route
+          Open Tracking
+        </button>
+        <button class="action-btn secondary" *ngIf="selectedTask.tripStatus === 'COMPLETED'" (click)="openTripSummary(selectedTask)">
+          View Summary
         </button>
       </div>
 
@@ -268,6 +283,45 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showAssignModal" (click)="closeAssignParcels()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Assign Parcels to Trip {{ selectedTripForAssignment?.trackingNumber }}</h3>
+      <button class="refresh-btn" (click)="closeAssignParcels()">Close</button>
+    </div>
+    <div *ngIf="actionLoading" class="no-results">
+      <h3>Loading available parcels...</h3>
+    </div>
+    <div *ngIf="!actionLoading && availableParcels.length === 0" class="no-results">
+      <h3>No available parcels</h3>
+      <p>There are no matching parcels for this route.</p>
+    </div>
+    <div *ngIf="!actionLoading && availableParcels.length > 0" class="deliveries-list">
+      <div class="delivery-card" *ngFor="let parcel of availableParcels">
+        <div class="delivery-header">
+          <div class="delivery-info">
+            <input type="checkbox" [checked]="selectedParcelIds.has(parcel.id)" (change)="toggleParcelSelection(parcel.id)">
+            <span class="tracking-number">{{ parcel.id.substring(0, 8).toUpperCase() }}</span>
+          </div>
+        </div>
+        <div class="delivery-addresses">
+          <div class="address-item"><span class="address-label">Source:</span><span class="address-text">{{ parcel.sourceAgencyName }}</span></div>
+          <div class="address-item"><span class="address-label">Destination:</span><span class="address-text">{{ parcel.destAgencyName }}</span></div>
+        </div>
+        <div class="delivery-details">
+          <div class="detail-item"><span>{{ parcel.weight }} kg</span></div>
+          <div class="detail-item"><span>Fragility {{ parcel.fragility }}/10</span></div>
+        </div>
+      </div>
+      <div class="delivery-actions">
+        <button class="action-btn primary" [disabled]="selectedParcelIds.size === 0 || actionLoading" (click)="assignSelectedParcels()">
+          Assign {{ selectedParcelIds.size }} Parcel(s)
+        </button>
       </div>
     </div>
   </div>

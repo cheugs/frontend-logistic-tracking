@@ -109,9 +109,20 @@
           Clear Filters
         </button>
       </div>
+      <div *ngIf="loading" class="no-results">
+        <div class="no-results-content">
+          <h3>Loading users...</h3>
+        </div>
+      </div>
+      <div *ngIf="!loading && errorMessage" class="no-results">
+        <div class="no-results-content">
+          <h3>{{ errorMessage }}</h3>
+          <button class="clear-filters-btn" (click)="fetchUsers()">Retry</button>
+        </div>
+      </div>
 
       <!-- List View -->
-      <div *ngIf="activeView === 'list'" class="users-table-container">
+      <div *ngIf="!loading && activeView === 'list'" class="users-table-container">
         <table class="users-table">
           <thead>
             <tr>
@@ -161,7 +172,7 @@
                     <path d="M4 20h16" />
                   </svg>
                 </button>
-                <button class="action-btn status" (click)="toggleUserStatus(user)" title="Toggle Status">
+                <button class="action-btn status" (click)="toggleUserStatus(user)" title="Toggle Status" [disabled]="saving">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
@@ -192,7 +203,7 @@
       </div>
 
       <!-- Grid View -->
-      <div *ngIf="activeView === 'grid'" class="users-grid">
+      <div *ngIf="!loading && activeView === 'grid'" class="users-grid">
         <div *ngFor="let user of filteredUsers" class="user-card" (click)="viewUserDetails(user)">
           <div class="user-card-header">
             <div class="user-card-avatar" [style.background]="getRoleColor(user.role)">
@@ -478,7 +489,7 @@
     
     <div class="modal-footer">
       <button class="btn-cancel" (click)="closeAddUserModal()">Cancel</button>
-      <button class="btn-save" (click)="addNewUser()">Add User</button>
+      <button class="btn-save" [disabled]="saving" (click)="addNewUser()">{{ saving ? 'Adding...' : 'Add User' }}</button>
     </div>
   </div>
 </div>

@@ -10,11 +10,11 @@
         <div class="agent-avatar">{{ agentAvatar }}</div>
         <div class="agent-info">
           <h3 class="agent-name">{{ agentName }}</h3>
-          <p class="agent-title">Delivery Agent</p>
+          <p class="agent-title">Trip Agent</p>
         </div>
       </div>
 
-      <h2 class="panel-title">My Deliveries</h2>
+      <h2 class="panel-title">My Trips</h2>
 
       <!-- Search and Filters -->
       <div class="filters-container">
@@ -25,7 +25,7 @@
           </svg>
           <input 
             type="text" 
-            placeholder="Search by tracking # or customer..." 
+            placeholder="Search by tracking # or agency..." 
             class="search-input"
             [value]="searchTerm"
             (input)="onSearch($event)"
@@ -34,8 +34,9 @@
 
         <select class="filter-select" [value]="filterStatus" (change)="onStatusFilter($event)">
           <option value="ALL">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="IN_TRANSIT">In Transit</option>
+          <option value="PENDING">Collecting</option>
+          <option value="IN_TRANSIT">Active</option>
+          <option value="DELIVERED">Completed</option>
         </select>
 
         <select class="filter-select" [value]="filterPriority" (change)="onPriorityFilter($event)">
@@ -49,7 +50,7 @@
           <option value="scheduledTime">Sort by Time</option>
           <option value="priority">Sort by Priority</option>
           <option value="distance">Sort by Distance</option>
-          <option value="customerName">Sort by Customer</option>
+          <option value="customerName">Sort by Transfer Type</option>
         </select>
 
         <button class="sort-order-btn" (click)="toggleSortOrder()">
@@ -68,24 +69,31 @@
       <div class="tabs-container">
         <button 
           class="tab-button"
-          [class.tab-button-active]="activeTab === 'all'"
-          (click)="setActiveTab('all')"
+          [class.tab-button-active]="activeTab === 'ALL'"
+          (click)="setActiveTab('ALL')"
         >
           All
         </button>
         <button 
           class="tab-button"
-          [class.tab-button-active]="activeTab === 'PENDING'"
-          (click)="setActiveTab('PENDING')"
+          [class.tab-button-active]="activeTab === 'COLLECTING'"
+          (click)="setActiveTab('COLLECTING')"
         >
-          Pending
+          Collecting
         </button>
         <button 
           class="tab-button"
-          [class.tab-button-active]="activeTab === 'IN_TRANSIT'"
-          (click)="setActiveTab('IN_TRANSIT')"
+          [class.tab-button-active]="activeTab === 'ACTIVE'"
+          (click)="setActiveTab('ACTIVE')"
         >
-          In Transit
+          Active
+        </button>
+        <button 
+          class="tab-button"
+          [class.tab-button-active]="activeTab === 'COMPLETED'"
+          (click)="setActiveTab('COMPLETED')"
+        >
+          Completed
         </button>
       </div>
 
@@ -104,6 +112,13 @@
 
       <!-- Deliveries List -->
       <div class="deliveries-list">
+        <div *ngIf="loading" class="no-results">
+          <h3>Loading trips...</h3>
+        </div>
+        <div *ngIf="!loading && errorMessage" class="no-results">
+          <h3>{{ errorMessage }}</h3>
+          <button class="clear-filters-btn" (click)="fetchDeliveries()">Retry</button>
+        </div>
         <div 
           *ngFor="let delivery of filteredDeliveries" 
           class="delivery-card" 
@@ -120,7 +135,7 @@
             </div>
             <div class="delivery-status">
               <span class="status-badge" [style.background]="delivery.statusBg" [style.color]="delivery.statusColor">
-                {{ delivery.status }}
+                {{ getTripStatusLabel(delivery) }}
               </span>
             </div>
           </div>
@@ -186,16 +201,16 @@
               Instructions
             </button>
             <button class="start-btn" *ngIf="delivery.status !== 'DELIVERED'" (click)="$event.stopPropagation(); startDelivery(delivery)">
-              {{ delivery.status === 'IN_TRANSIT' ? 'Continue' : 'Start Delivery' }}
+              {{ getDeliveryActionLabel(delivery) }}
             </button>
           </div>
         </div>
 
-        <div *ngIf="filteredDeliveries.length === 0" class="no-results">
+        <div *ngIf="!loading && !errorMessage && filteredDeliveries.length === 0" class="no-results">
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
             <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
           </svg>
-          <h3>No deliveries found</h3>
+          <h3>No trips found</h3>
           <p>Try adjusting your filters</p>
         </div>
       </div>
@@ -205,7 +220,7 @@
     <div class="detail-panel" *ngIf="selectedDelivery">
       <div class="detail-header">
         <div class="detail-title">
-          <h3>Delivery Details</h3>
+          <h3>Trip Details</h3>
           <p>Tracking #: {{ selectedDelivery.trackingNumber }}</p>
         </div>
         <button class="close-details" (click)="selectedDelivery = null">
@@ -227,7 +242,7 @@
             </svg>
           </div>
           <div class="summary-info">
-            <div class="summary-status">{{ selectedDelivery.status }}</div>
+            <div class="summary-status">{{ getTripStatusLabel(selectedDelivery) }}</div>
             <div class="summary-priority" [class.priority-high]="selectedDelivery.priority === 'high'">
               {{ getPriorityText(selectedDelivery.priority) }} Priority
             </div>
@@ -239,7 +254,7 @@
             <div class="stat-value">{{ selectedDelivery.distance }} km</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Est. Time</div>
+            <div class="stat-label">Est. Travel Time</div>
             <div class="stat-value">{{ selectedDelivery.estimatedTime }}</div>
           </div>
           <div class="stat">
@@ -283,23 +298,23 @@
               </svg>
             </div>
             <div class="point-details">
-              <div class="point-label">Delivery Address</div>
+              <div class="point-label">Destination Agency</div>
               <div class="point-address">{{ selectedDelivery.deliveryAddress }}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Customer Information -->
+      <!-- Transfer Information -->
       <div class="customer-info">
-        <h3 class="section-title">Customer Information</h3>
+        <h3 class="section-title">Transfer Information</h3>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Name:</span>
+            <span class="info-label">Type:</span>
             <span class="info-value">{{ selectedDelivery.customerName }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Phone:</span>
+            <span class="info-label">Contact:</span>
             <span class="info-value">{{ selectedDelivery.customerPhone }}</span>
           </div>
           <div class="info-row" *ngIf="selectedDelivery.scheduledTime">
@@ -331,7 +346,7 @@
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          {{ selectedDelivery.status === 'IN_TRANSIT' ? 'Continue Delivery' : 'Start Delivery' }}
+          {{ getDeliveryActionLabel(selectedDelivery) }}
         </button>
         <button class="action-btn secondary" *ngIf="selectedDelivery.specialInstructions" (click)="viewInstructions(selectedDelivery)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -349,8 +364,8 @@
         <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="1.5">
           <path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/>
         </svg>
-        <h3>Select a delivery</h3>
-        <p>Choose a delivery from the list to view details</p>
+        <h3>Select a trip</h3>
+        <p>Choose a trip from the list to view details</p>
       </div>
     </div>
   </div>
@@ -376,7 +391,7 @@
           <span class="value">{{ selectedDelivery.trackingNumber }}</span>
         </div>
         <div class="info-item">
-          <span class="label">Customer:</span>
+          <span class="label">Transfer Type:</span>
           <span class="value">{{ selectedDelivery.customerName }}</span>
         </div>
       </div>

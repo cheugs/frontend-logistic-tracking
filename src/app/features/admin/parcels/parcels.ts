@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SidebarComponent } from '../../../shared/sidebar/sidebar';
 import { ParcelAdminService } from '../../../core/services/parcel-admin.service';
-import { ParcelStatus } from '../../../core/models/parcel.model';
+import { ParcelStatus, ParcelSummary } from '../../../core/models/parcel.model';
 import { inject } from '@angular/core';
 
 interface Parcel {
@@ -45,6 +45,8 @@ interface StatCard {
 export class AdminParcelsComponent implements OnInit {
   parcels: Parcel[] = [];
   filteredParcels: Parcel[] = [];
+  loading = false;
+  errorMessage = '';
   selectedParcel: Parcel | null = null;
   showStatusModal: boolean = false;
   showDetailsModal: boolean = false;
@@ -73,35 +75,47 @@ export class AdminParcelsComponent implements OnInit {
   }
 
   fetchParcels(): void {
-    this.parcelService.getAllParcels().subscribe((data: any[]) => {
-      this.parcels = data.map(p => this.mapParcel(p));
-      this.filterParcels();
-      this.calculateStats();
+    this.loading = true;
+    this.errorMessage = '';
+    this.parcelService.getAllParcels().subscribe({
+      next: (data: ParcelSummary[]) => {
+        this.parcels = data.map((p) => this.mapParcel(p));
+        this.filterParcels();
+        this.calculateStats();
+        this.loading = false;
+      },
+      error: () => {
+        this.parcels = [];
+        this.filteredParcels = [];
+        this.calculateStats();
+        this.errorMessage = 'Failed to load parcels. Please try again.';
+        this.loading = false;
+      }
     });
   }
 
-  private mapParcel(apiParcel: any): Parcel {
+  private mapParcel(apiParcel: ParcelSummary): Parcel {
     const status = apiParcel.status as ParcelStatus;
     const colors = this.getStatusColors(status);
-    
+
     return {
       id: apiParcel.id,
-      trackingNumber: apiParcel.id.substring(0, 8).toUpperCase(),
-      senderName: apiParcel.userId.substring(0, 8),
-      receiverName: apiParcel.receiverName || 'Unknown',
-      origin: apiParcel.sourceAgencyName || apiParcel.sourceManualAddress || 'N/A',
-      destination: apiParcel.destAgencyName || apiParcel.destManualAddress || 'N/A',
-      weight: apiParcel.weight,
-      fragilityLevel: apiParcel.fragility,
+      trackingNumber: (apiParcel.reference || apiParcel.id).substring(0, 8).toUpperCase(),
+      senderName: 'N/A',
+      receiverName: apiParcel.title || 'Unknown',
+      origin: 'N/A',
+      destination: apiParcel.destination || 'N/A',
+      weight: 0,
+      fragilityLevel: 1,
       status: status,
       statusColor: colors.color,
       statusBg: colors.bg,
       estimatedDelivery: new Date(apiParcel.estimatedDeliveryTime || apiParcel.createdAt),
       createdAt: new Date(apiParcel.createdAt),
-      cost: apiParcel.estimatedCost,
+      cost: 0,
       assignedAgent: 'Not assigned',
       progress: this.calculateProgress(status),
-      currentLocation: apiParcel.sourceAgencyName || 'Origin'
+      currentLocation: apiParcel.destination || 'In network'
     };
   }
 
@@ -128,6 +142,9 @@ export class AdminParcelsComponent implements OnInit {
   }
 
   calculateStats(): void {
+    const averageFragility = this.parcels.length > 0
+      ? Math.round(this.parcels.reduce((sum, p) => sum + p.fragilityLevel, 0) / this.parcels.length)
+      : 0;
     this.statsCards = [
       {
         label: 'Total Parcels',
@@ -172,7 +189,7 @@ export class AdminParcelsComponent implements OnInit {
       },
       {
         label: 'Avg Fragility',
-        value: Math.round(this.parcels.reduce((sum, p) => sum + p.fragilityLevel, 0) / this.parcels.length),
+        value: averageFragility,
         icon: this.sanitizer.bypassSecurityTrustHtml(`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
           <polygon points="12 2 2 7 12 12 22 7 12 2" />
           <polyline points="2 17 12 22 22 17" />
@@ -225,16 +242,16 @@ export class AdminParcelsComponent implements OnInit {
 
   filterParcels(): void {
     this.filteredParcels = this.parcels.filter(parcel => {
-      const matchesSearch = this.searchTerm === '' || 
+      const matchesSearch = this.searchTerm === '' ||
         parcel.trackingNumber.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         parcel.senderName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         parcel.receiverName.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         parcel.origin.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
         parcel.destination.toLowerCase().includes(this.searchTerm.toLowerCase());
-      
-      const matchesStatus = this.selectedStatus === '' || this.selectedStatus === 'ALL' || 
+
+      const matchesStatus = this.selectedStatus === '' || this.selectedStatus === 'ALL' ||
         parcel.status === this.selectedStatus;
-      
+
       let matchesFragility = true;
       if (this.selectedFragility === 'Low (1-3)') {
         matchesFragility = parcel.fragilityLevel >= 1 && parcel.fragilityLevel <= 3;
@@ -243,12 +260,12 @@ export class AdminParcelsComponent implements OnInit {
       } else if (this.selectedFragility === 'High (8-10)') {
         matchesFragility = parcel.fragilityLevel >= 8 && parcel.fragilityLevel <= 10;
       }
-      
+
       let matchesTab = true;
       if (this.activeTab !== 'all') {
         matchesTab = parcel.status === this.activeTab.toUpperCase();
       }
-      
+
       return matchesSearch && matchesStatus && matchesFragility && matchesTab;
     });
 
@@ -259,7 +276,7 @@ export class AdminParcelsComponent implements OnInit {
     this.filteredParcels.sort((a, b) => {
       let aVal: any;
       let bVal: any;
-      
+
       switch(this.sortBy) {
         case 'trackingNumber':
           aVal = a.trackingNumber;
@@ -289,7 +306,7 @@ export class AdminParcelsComponent implements OnInit {
           aVal = a.createdAt.getTime();
           bVal = b.createdAt.getTime();
       }
-      
+
       if (this.sortOrder === 'asc') {
         return aVal > bVal ? 1 : -1;
       } else {
@@ -359,19 +376,31 @@ export class AdminParcelsComponent implements OnInit {
   }
 
   updateParcelStatus(): void {
-    if (this.selectedParcel && this.newStatus === 'CANCELLED') {
-      this.parcelService.cancelParcel(this.selectedParcel.id).subscribe(() => {
-        this.fetchParcels();
-        this.closeStatusModal();
-      });
-    } else {
-      // Status updates other than cancellation would go here if backend supported them manually
+    if (!this.selectedParcel) return;
+
+    if (this.newStatus === this.selectedParcel.status) {
       this.closeStatusModal();
+      return;
     }
+
+    if (this.newStatus === 'CANCELLED') {
+      this.parcelService.cancelParcel(this.selectedParcel.id).subscribe({
+        next: () => {
+          this.fetchParcels();
+          this.closeStatusModal();
+        },
+        error: () => {
+          this.errorMessage = 'Failed to cancel parcel. Please retry.';
+        }
+      });
+      return;
+    }
+
+    this.errorMessage = 'Only cancellation is currently supported by backend manual status update.';
   }
 
   deleteParcel(id: string): void {
-    // Usually admin wouldn't delete but cancel. 
+    // Usually admin wouldn't delete but cancel.
     // Implementation left for consistency if needed.
     if (confirm('Are you sure you want to delete this parcel?')) {
       this.closeDetailsModal();

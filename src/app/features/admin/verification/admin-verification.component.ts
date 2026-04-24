@@ -1,7 +1,8 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../../core/services/auth.service';
+import { UserService } from '../../../shared/services/user.service';
 import { UserResponse } from '../../../core/models/auth.models';
+import { User, VerificationStatus } from '../../../core/models/user';
 
 @Component({
   selector: 'app-admin-verification',
@@ -94,21 +95,22 @@ import { UserResponse } from '../../../core/models/auth.models';
   `]
 })
 export class AdminVerificationComponent implements OnInit {
-  private authService = inject(AuthService);
-  agents = signal<UserResponse[]>([]);
+  private userService = inject(UserService);
+  agents = signal<User[]>([]);
 
   ngOnInit() {
     this.loadPending();
   }
 
   loadPending() {
-    this.authService.getPendingAgents().subscribe(data => {
-      this.agents.set(data);
+    this.userService.getUsersByRole('AGENT').subscribe(data => {
+      // Filter for pending agents
+      this.agents.set(data.filter(u => u.verificationStatus === 'PENDING'));
     });
   }
 
   onVerify(userId: string, status: string) {
-    this.authService.verifyUser(userId, status).subscribe(() => {
+    this.userService.verifyUser(userId, status as VerificationStatus).subscribe(() => {
       this.loadPending();
     });
   }

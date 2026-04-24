@@ -6,6 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
+    "deploy": "ng build --configuration production --base-href=/frontend-logistic-tracking/ && npx angular-cli-ghpages --dir=dist/logistics-frontend/browser --no-silent",
     "test": "ng test"
   },
   "private": true,
@@ -37,6 +38,7 @@
     "@angular/build": "^21.2.7",
     "@angular/cli": "^21.2.7",
     "@angular/compiler-cli": "^21.2.0",
+    "angular-cli-ghpages": "^3.0.3",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",

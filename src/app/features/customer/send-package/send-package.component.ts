@@ -2,13 +2,12 @@ import { Component, ChangeDetectionStrategy, signal, OnInit } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { BottomNavComponent } from '../../../shared/bottom-nav/bottom-nav.component';
 import { CreateParcelDraft } from '../../../core/models/parcel.model';
 
 @Component({
   selector: 'app-send-package', 
   standalone: true,
-  imports: [CommonModule, RouterModule, BottomNavComponent, ReactiveFormsModule],
+  imports: [CommonModule, RouterModule, ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './create-parcel.html',
   styleUrls: ['./create-parcel.scss']

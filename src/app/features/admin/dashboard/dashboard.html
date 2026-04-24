@@ -46,8 +46,13 @@
 
       <!-- Order cards -->
       <div class="orders-list">
+        <div *ngIf="loading" class="no-results-content">Loading dashboard data...</div>
+        <div *ngIf="!loading && errorMessage" class="no-results-content">
+          <div>{{ errorMessage }}</div>
+          <button class="clear-filters-btn" (click)="reloadDashboardData()">Retry</button>
+        </div>
         <div 
-          *ngFor="let order of orders" 
+          *ngFor="let order of filteredOrders" 
           class="order-card" 
           [class.order-card-active]="activeOrder.id === order.id"
           (click)="setActiveOrder(order)"
@@ -101,6 +106,9 @@
               {{ step.time }}
             </span>
           </div>
+        </div>
+        <div *ngIf="!loading && !errorMessage && filteredOrders.length === 0" class="no-results-content">
+          No parcel orders found.
         </div>
       </div>
     </div>

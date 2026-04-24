@@ -129,8 +129,6 @@ export class ReviewConfirmComponent {
   state = this.wizardService.state;
 
   onConfirm() {
-    // In a real app, this would redirect to a real payment gateway
-    // For demo, we'll just simulate success
-    this.router.navigate(['/customer/dashboard']);
+    this.wizardService.nextStep();
   }
 }
