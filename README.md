@@ -1,173 +1,89 @@
-# LogisticsFrontend
+# Logistics Tracking Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
+![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white) ![Angular Material](https://img.shields.io/badge/Angular%20Material-21-757575?logo=angular&logoColor=white) ![Leaflet](https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white) ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?logo=bootstrap&logoColor=white) ![Vitest](https://img.shields.io/badge/Vitest-4-6E9F18?logo=vitest&logoColor=white)
 
-## Development server
+The web client of a **parcel delivery and tracking platform**. One Angular application serves three kinds of users, each with their own space: **customers** who send and follow parcels, **delivery agents** who carry them, and **administrators** who supervise the whole system.
 
-To start a local development server, run:
+**Online preview:** https://cheugs.github.io/frontend-logistic-tracking/
+*The preview shows the interface. Signing in needs the backend API, which runs locally (see [Run it locally](#run-it-locally)).*
+
+**Author:** Chengho Fongang Marie Louise
+
+---
+
+## What each user can do
+
+| Role | Pages | What they are for |
+|---|---|---|
+| **Customer** | Dashboard, send a package (step-by-step wizard), my packages, delivery details, track a parcel, account | Create a parcel, see what it costs, and follow it on a map until delivery |
+| **Delivery agent** | Dashboard, my deliveries, live tracking, delivery history, parcel marketplace, trip planner, verification | Pick up parcels, follow the route, and keep a record of completed deliveries |
+| **Administrator** | Dashboard, agencies, parcels, users, route cache, API usage, verification | Manage agencies and users, see every parcel, and monitor how much of the map API quota is used |
+
+Public pages: landing, onboarding, login and registration.
+
+## How it is built
+
+```
+src/app/
+├── core/          guards (auth, role), JWT interceptor, typed models, app-wide services
+├── features/
+│   ├── auth/        login, register
+│   ├── customer/    dashboard, parcel wizard, tracking, account
+│   ├── agent/       deliveries, live tracking, trip planner
+│   ├── admin/       agencies, parcels, users, API usage
+│   ├── landing/
+│   └── onboarding/
+└── shared/        navbar, sidebars, map view, notifications, status badge, API services
+```
+
+- **Role-based access.** Three roles (`CUSTOMER`, `AGENT`, `ADMIN`). An auth guard and a role guard protect the routes, and an HTTP interceptor attaches the JWT to every API call.
+- **Lazy loading.** The admin and agent areas are separate modules loaded on demand; customer pages are standalone components loaded one by one, so the first page stays light.
+- **Maps.** Parcel and delivery tracking are drawn on OpenStreetMap with Leaflet, through a reusable `map-view` component.
+- **One service per backend resource.** Parcels, trips, payments, wallet, agencies, routes cache, statistics and notifications each have a typed service and model.
+- **Tests.** 29 spec files, run with Vitest.
+
+## Tech stack
+
+| Area | Tools |
+|---|---|
+| Framework | Angular 21, TypeScript 5.9, RxJS |
+| UI | Angular Material, Angular CDK, Bootstrap 5, ngx-toastr |
+| Maps | Leaflet, ngx-leaflet |
+| Auth | JWT (`@auth0/angular-jwt`), route guards, HTTP interceptor |
+| Tests and tooling | Vitest, Prettier, Angular CLI |
+| Deployment | GitHub Pages (`angular-cli-ghpages`) |
+
+## The backend it talks to
+
+This repository is the frontend only. It expects the logistics API on `http://localhost:8765` (set in `src/environments/environment.ts`). The backend design is a set of microservices (parcel, delivery, payment, notification) that communicate through events; it is described in [BackEnd-README.md](BackEnd-README.md).
+
+## Run it locally
+
+Requirements: Node.js 20 or later and npm.
 
 ```bash
-ng serve
+git clone https://github.com/cheugs/frontend-logistic-tracking.git
+cd frontend-logistic-tracking
+npm install
+npm start
 ```
 
-## Code scaffolding
- 
-```bash
-ng generate component component-name
-```
- Based on your logistics system document, here's a complete frontend organization plan with **3 distinct dashboards** for each actor.
+Then open http://localhost:4200.
 
----
+Other commands:
 
-## ACTORS & THEIR DASHBOARDS
+| Command | What it does |
+|---|---|
+| `npm test` | Runs the unit tests |
+| `npm run build` | Builds the production bundle into `dist/` |
+| `npm run deploy` | Builds and publishes to GitHub Pages |
 
-| Actor | Dashboard Name | Primary Goal |
-|--------|----------------|---------------|
-| **Customer** (Sender/Receiver) | Customer Dashboard | Create parcels, track deliveries, make payments |
-| **Delivery Agent** | Agent Dashboard | View assigned parcels, update location, complete deliveries |
-| **System Admin** | Admin Dashboard | Manage agencies, monitor API usage, view all parcels |
+## Limits and next steps
 
----
+- Without the backend running, pages that need data stay empty and sign-in fails.
+- There are no screenshots in this README yet.
+- No end-to-end tests yet.
 
-## PAGE STRUCTURE & ROUTING
+## Skills shown
 
-```
-/
-├── login
-├── register
-├── customer/
-│   ├── dashboard
-│   ├── create-parcel
-│   ├── track-parcel/:id
-│   ├── payment/:parcelId
-│   └── history
-├── agent/
-│   ├── dashboard
-│   ├── my-deliveries
-│   ├── live-tracking/:parcelId
-│   └── delivery-history
-├── admin/
-│   ├── dashboard
-│   ├── agencies
-│   ├── parcels
-│   ├── routes-cache
-│   ├── api-usage
-│   └── users
-└── shared/
-    ├── map-view
-    └── notifications
-```
-
----
-
-## 1. CUSTOMER DASHBOARD
-
-### Pages & Content
-
-| Page | Route | Key Features |
-|-------|-------|---------------|
-| **Dashboard** | `/customer/dashboard` | Overview of active parcels, recent deliveries, payment status, notifications |
-| **Create Parcel** | `/customer/create-parcel` | - Select country → town<br>- Choose pickup/delivery agency OR manual address entry<br>- Enter weight (kg), fragility level (1-10 slider)<br>- Display calculated cost in real-time<br>- Submit button |
-| **Track Parcel** | `/customer/track-parcel/:id` | - Live map with GPS position<br>- Progress bar (25%/50%/75%/100%)<br>- Estimated arrival time<br>- Status timeline (CREATED → IN_TRANSIT → DELIVERED)<br>- Notification log |
-| **Payment** | `/customer/payment/:parcelId` | - Show cost breakdown (base + distance + fragility)<br>- Payment button (simulated or Stripe/PayPal)<br>- Status after payment |
-| **History** | `/customer/history` | Table of all parcels with filters (status, date range) |
-
-### Links between pages:
-```
-Dashboard → [Create New Parcel] → Create Parcel
-Dashboard → [Track] on any parcel → Track Parcel
-Create Parcel → [Pay Now] → Payment → back to Dashboard
-Track Parcel → [View All] → History
-```
-
----
-
-## 2. DELIVERY AGENT DASHBOARD
-
-> *Assumption: Each parcel has ONE assigned agent (per document)*
-
-### Pages & Content
-
-| Page | Route | Key Features |
-|-------|-------|---------------|
-| **Dashboard** | `/agent/dashboard` | - Today's deliveries count<br>- Active parcels in progress<br>- Map preview of current route<br>- Next delivery ETA |
-| **My Deliveries** | `/agent/my-deliveries` | List of assigned parcels with:<br>- Pickup/delivery addresses<br>- Fragility level (⚠️ warning if high)<br>- Status (PENDING/IN_TRANSIT/DELIVERED)<br>- Start Delivery button |
-| **Live Tracking** | `/agent/live-tracking/:parcelId` | - GPS simulation controls (start/pause)<br>- Current position on map<br>- Route segments with road type colors<br>- Speed adjustment shown (base × fragility)<br>- Update position manually (for testing)<br>- Mark Delivered button |
-| **Delivery History** | `/agent/delivery-history` | Completed deliveries with timestamps, ratings (optional) |
-
-### Links:
-```
-Dashboard → [View All Deliveries] → My Deliveries
-My Deliveries → [Start] on parcel → Live Tracking
-Live Tracking → [Complete] → Dashboard (updated)
-```
-
----
-
-## 3. ADMIN DASHBOARD
-
-### Pages & Content
-
-| Page | Route | Key Features |
-|-------|-------|---------------|
-| **Dashboard** | `/admin/dashboard` | - Total parcels (today/week)<br>- API calls remaining / used<br>- Cache hit rate<br>- Active agents online<br>- System health |
-| **Agencies** | `/admin/agencies` | CRUD operations:<br>- Add/Edit/Delete agency<br>- Fields: name, country, town, lat, lng<br>- Pre-store coordinates (no API call for customers) |
-| **Parcels** | `/admin/parcels` | - All parcels in system<br>- Filter by status, date, fragility<br>- View details of any parcel<br>- Force status change (admin override) |
-| **Route Cache** | `/admin/routes-cache` | - View cached routes (source → destination)<br>- Delete expired/incorrect cache<br>- Manual cache entry |
-| **API Usage** | `/admin/api-usage` | - Geocoding API calls chart<br>- Routing API calls chart<br>- Cache efficiency metrics<br>- Rate limit alerts |
-| **Users** | `/admin/users` | - List customers and agents<br>- Promote customer → agent<br>- Disable accounts |
-
-### Links:
-```
-Dashboard → [Manage Agencies] → Agencies
-Dashboard → [View All Parcels] → Parcels
-Dashboard → [API Stats] → API Usage
-Parcels → [View Route Cache] → Route Cache
-```
-
----
-
-## SHARED COMPONENTS (Reused across dashboards)
-
-| Component | Used In | Description |
-|-----------|---------|-------------|
-| **LiveMap** | Customer Track, Agent Live Tracking, Admin Parcels | Leaflet/Google Maps showing parcel position, route polyline |
-| **StatusBadge** | All dashboards | Colored badge: CREATED (blue), IN_TRANSIT (orange), DELIVERED (green) |
-| **ProgressStepper** | Customer Track | Milestone steps: 25% → 50% → 75% → 100% |
-| **NotificationToast** | All dashboards | Real-time alerts for PARCEL_LOCATION_UPDATED, PARCEL_DELIVERED |
-| **SidebarNav** | All dashboards | Collapsible navigation with role-specific links |
-| **CostCalculator** | Customer Create Parcel | Live calculation: `base_price * distance_factor + (fragility * 500)` |
-
----
-
-## LOGIN / REGISTRATION
-
-### Login Page (`/login`)
-- Email + Password
-- Role selection (Customer / Agent / Admin) — or auto-detect from backend
-
-### Register Page (`/register`)
-- Name, Email, Password
-- Account type: Customer only (Admin/Agent created by existing admin)
-
----
-
-## SUGGESTED API ENDPOINTS (Frontend will call)
-
-| Method | Endpoint | Used By |
-|--------|----------|---------|
-| POST | `/api/parcels` | Customer |
-| GET | `/api/parcels/:id` | Customer, Agent, Admin |
-| GET | `/api/parcels/user` | Customer |
-| GET | `/api/parcels/agent` | Agent |
-| PUT | `/api/parcels/:id/location` | Agent (simulation) |
-| PUT | `/api/parcels/:id/status` | Agent, Admin |
-| POST | `/api/payments` | Customer |
-| GET | `/api/agencies` | Customer, Admin |
-| POST | `/api/agencies` | Admin |
-| GET | `/api/routes/cached` | Admin |
-| GET | `/api/analytics/api-usage` | Admin |
-
----
-
- 
+Angular application architecture (core / features / shared), role-based routing and guards, JWT authentication, lazy loading, interactive maps with Leaflet, typed REST services with RxJS, and deployment to GitHub Pages.
